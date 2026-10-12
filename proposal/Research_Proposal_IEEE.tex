@@ -2,6 +2,10 @@
 % Research Proposal -- 1501830 Topics in Artificial Intelligence (IEEE conference style)
 \documentclass[conference]{IEEEtran}
 \usepackage{cite}
+\usepackage{iftex}
+\ifXeTeX % local Tectonic build: use Times like IEEEtran does under pdfLaTeX
+  \usepackage{fontspec}\setmainfont{texgyretermes}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\fi
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{xcolor}
