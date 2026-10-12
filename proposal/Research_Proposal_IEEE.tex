@@ -11,6 +11,7 @@
 \usepackage{xcolor}
 \usepackage{booktabs}
 \usepackage{array}
+\renewcommand{\arraystretch}{1.3}
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta}
@@ -20,6 +21,7 @@
 \newif\ifsurvey \surveyfalse % set \surveytrue only for an approved systematic-review project
 
 \begin{document}
+\raggedbottom
 
 \title{CODA: Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers}
 
@@ -45,14 +47,14 @@ Industrial sensors increasingly detect faults on the device itself, which cuts l
 In practice, the threshold is set once at full precision and copied to every device. Each device runs a different integer model, with its own kernels and rounding, so its scores drift and the guarantee is lost. Recalibrating each device is often impractical. The calibration set may not fit in flash, and its owner may not be allowed to copy it to every device in a fleet.
 
 \textbf{Research question:} Can a threshold calibrated once at full precision, plus a label-free per-device shift correction, keep the realized false-alarm rate of INT8 anomaly detectors on heterogeneous microcontrollers within a target bound?\\
-\textbf{Hypothesis:} On all three boards, the corrected threshold keeps the false-alarm rate on normal test data within $\alpha+\delta$ (with $\delta=0.01$, for $\alpha\in\{0.01,0.05\}$), while the inherited threshold exceeds it, and detection recall stays within 5 percentage points of per-device recalibration.
+\textbf{Hypothesis:} On all three boards, the corrected threshold keeps the false-alarm rate on normal test data within $\alpha+0.01$ (for $\alpha=0.01$ and $0.05$), while the inherited threshold exceeds it, and detection recall stays within 5 percentage points of per-device recalibration.
 
 \begin{figure*}[t]
 \centering
 \begin{tikzpicture}[node distance=0.9cm, box/.style={draw, rounded corners=2pt, fill=black!8, align=center, font=\footnotesize, minimum height=1.1cm, text width=3.1cm}, >={Stealth[length=5pt]}]
 \node[box] (a) {Train and calibrate $\tau$\\ (FP32, host GPU)};
 \node[box, right=of a] (b) {Quantize per board\\ (INT8 PTQ)};
-\node[box, right=of b] (c) {Measure shift $\Delta_d$ on\\ $m$ unlabeled probes};
+\node[box, right=of b] (c) {Measure score shift on\\ unlabeled probe windows};
 \node[box, right=of c, fill=black!20] (d) {Flash $\tau_d=\tau+\hat q_d$\\ to board $d$};
 \draw[->] (a) -- (b); \draw[->] (b) -- (c); \draw[->] (c) -- (d);
 \end{tikzpicture}
@@ -67,13 +69,13 @@ Table~\ref{tab:rw} summarizes the closest work. A NeurIPS 2026 workshop study sh
 \caption{Closest work and what it leaves open}
 \label{tab:rw}
 \centering\footnotesize
-\begin{tabular}{@{}L{2.0cm}L{2.9cm}L{2.9cm}@{}}
+\begin{tabular}{@{}L{2.3cm}L{2.85cm}L{2.65cm}@{}}
 \toprule
-Work & Contribution & Open\\ \midrule
-VLA monitors~\cite{vla2026} & Inherited threshold fails under quantization & No guarantee; simulated; not sensors\\
-LLM benchmark~\cite{compress2026} & Conformal on compressed LLMs & Recalibrates each model\\
-Retrieval~\cite{retrieval2026} & Certifies FP/INT agreement & Not false-alarm control\\
-TCUQ, HDUQ~\cite{tcuq2025,hduq2026} & On-MCU conformal & No FP-to-INT transfer\\
+Work & What it shows & What is missing\\ \midrule
+Bysani~\cite{vla2026} & Inherited threshold fails after quantization & Guarantee; real hardware\\
+Tong et al.~\cite{compress2026} & Conformal on compressed LLMs & Reuse of one threshold\\
+Zhou et al.~\cite{retrieval2026} & Certifies FP/INT agreement & False-alarm control\\
+TCUQ~\cite{tcuq2025},\newline HDUQ~\cite{hduq2026} & Conformal on MCUs & Transfer from full precision\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -82,14 +84,14 @@ To our knowledge, no existing method restores a conformal false-alarm guarantee 
 
 \section{Proposed Method}
 \subsection{Problem Formulation}
-Let $x$ be a sensor window, $s(x)$ the full-precision anomaly score, and $s_d(x)$ the score of the INT8 model on device $d$. Split-conformal calibration on $n$ normal windows sets $\tau$ as the $\lceil (n+1)(1-\alpha)\rceil$-th smallest calibration score~\cite{bates2023}. With score shift $\Delta_d(x)=s_d(x)-s(x)$, we set
+Let $s(x)$ be the anomaly score of window $x$ under the full-precision model, and $s_d(x)$ its score on device $d$. On the host, standard split-conformal calibration on normal data gives a threshold $\tau$ with false-alarm rate at most $\alpha$~\cite{bates2023}. On each device we measure the score shift $s_d(x)-s(x)$ on a set of unlabeled probe windows and set
 \begin{equation}
 \tau_d=\tau+\hat q_d,
 \end{equation}
-where $\hat q_d$ is the $\lceil (m+1)(1-\delta)\rceil$-th smallest of $\Delta_d$ over $m$ unlabeled probe windows. A union bound gives a false-alarm rate on device $d$ of at most $\alpha+\delta$ when probe and test windows are exchangeable; we will prove this formally and extend it to temporally dependent data using block calibration~\cite{barber2023}.
+where $\hat q_d$ is a high conformal quantile (level $1-\delta$) of that shift. The false-alarm rate on device $d$ is then at most $\alpha+\delta$ when probe and test windows are exchangeable. We will prove this formally and extend it to time series using block calibration~\cite{barber2023}.
 
 \subsection{Approach}
-Fig.~\ref{fig:pipeline} shows the pipeline. (1) Windows of length 64 (stride 1) are z-normalized with training statistics. (2) A 1D-convolutional autoencoder (three conv layers, under 100\,KB in INT8) is trained on normal windows; the score is reconstruction mean-squared error. The last 20\% of normal training data, split in time, is the calibration set. (3) Each board's model is produced by TensorFlow Lite full-integer post-training quantization with 500 representative windows, and compiled with TFLite Micro using CMSIS-NN (STM32, RP2350) or ESP-NN (ESP32)~\cite{david2021}. (4) $m=500$ probe windows are streamed to each board over UART; on-device scores give $\Delta_d$. (5) $\tau_d$ is flashed to the board. No calibration data leaves the host.
+Fig.~\ref{fig:pipeline} shows the pipeline. (1) Windows of length 64 (stride 1) are z-normalized with training statistics. (2) A 1D-convolutional autoencoder (three conv layers, under 100\,KB in INT8) is trained on normal windows; the score is reconstruction mean-squared error. The last 20\% of normal training data, split in time, is the calibration set. (3) Each board's model is produced by TensorFlow Lite full-integer post-training quantization with 500 representative windows, and compiled with TFLite Micro using CMSIS-NN (STM32, RP2350) or ESP-NN (ESP32)~\cite{david2021}. (4) 500 probe windows are streamed to each board over UART, and the on-device scores give the shift. (5) $\tau_d$ is flashed to the board. No calibration data leaves the host.
 
 
 \section{Evaluation Plan}
@@ -101,7 +103,7 @@ The boards are an STM32 Nucleo (Cortex-M4/M7), an ESP32-S3 (Xtensa LX7), and a R
 We compare against four baselines: (B1) the inherited threshold $\tau$; (B2) per-device recalibration with the full calibration set, as an upper bound; (B3) on-device streaming quantile recalibration, following TCUQ and adaptive conformal inference~\cite{tcuq2025,gibbs2021}; and (B4) the label-free realignment repair of~\cite{vla2026}.
 
 \subsection{Metrics}
-Task metrics: realized false-alarm rate versus target $\alpha\in\{0.01,0.05,0.1\}$, detection recall, and AUC. Systems measures: inference latency per window (on-chip cycle counter), peak SRAM, and flash, including the overhead of the correction. All results are averaged over 5 seeds (training and calibration split), with 95\% confidence intervals.
+Task metrics: realized false-alarm rate versus the target $\alpha$ (0.01, 0.05, and 0.1), detection recall, and AUC. Systems measures: inference latency per window (on-chip cycle counter), peak SRAM, and flash, including the overhead of the correction. All results are averaged over 5 seeds (training and calibration split), with 95\% confidence intervals.
 
 \subsection{Ablations and Comparisons}
 Table~\ref{tab:exp} lists the planned experiments. E1 tests the failure; E2 tests the hypothesis against B1--B4; E3 and E4 are ablations on probe source and size, and on bit-width and model size.
@@ -110,13 +112,13 @@ Table~\ref{tab:exp} lists the planned experiments. E1 tests the failure; E2 test
 \caption{Planned experiments}
 \label{tab:exp}
 \centering\footnotesize
-\begin{tabular}{@{}lL{2.2cm}L{2.3cm}L{2.0cm}@{}}
+\begin{tabular}{@{}lL{2.45cm}L{2.55cm}L{2.0cm}@{}}
 \toprule
-ID & Question & Variants & Output\\ \midrule
-E1 & Does inheriting $\tau$ break? & 3 boards, 3 datasets & FAR vs.\ $\alpha$, AUC\\
-E2 & Does $\tau_d$ hold? & Ours vs.\ B1--B4 & FAR, recall, latency, SRAM\\
-E3 & Is the shift numerical? & Probes: in-domain, other dataset, synthetic; $m\in\{50,200,500\}$ & FAR vs.\ probe source, $m$\\
-E4 & Robust to compression? & INT8 vs.\ INT4; 3 model sizes & FAR, recall, memory\\
+ID & Question & Setup & Measure\\ \midrule
+E1 & Does the inherited threshold fail? & 3 boards, 3 datasets & FAR, AUC\\
+E2 & Does CODA fix it? & CODA vs.\ B1--B4 & FAR, recall, latency, SRAM\\
+E3 & Does the shift depend on data? & 3 probe sources; 50, 200, 500 probes & FAR\\
+E4 & Does it hold at lower precision? & INT8 vs.\ INT4; 3 model sizes & FAR, recall, memory\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -128,16 +130,16 @@ The largest risk is that the score shift depends on the input data and not only 
 \caption{Risk register}
 \label{tab:risk}
 \centering\footnotesize
-\begin{tabular}{@{}L{2.3cm}L{0.75cm}L{4.65cm}@{}}
+\begin{tabular}{@{}L{2.6cm}cL{4.2cm}@{}}
 \toprule
 Risk & Level & Mitigation\\ \midrule
-Technical: shift depends on data (H2 fails) & M & Keep a small in-domain probe set on the host; report how much is needed\\
-Technical: bound too loose & M & Tighter joint quantile instead of union bound\\
-Novelty: ``why not recalibrate per device?'' & M & Quantify data size, privacy, and fleet cost; report B2 as upper bound\\
-Data: SWaT access delayed & M & Start with SMD and SMAP/MSL\\
-Compute: board or toolchain issues & L & Two boards suffice; drop RP2350 first\\
-Security: tampered probe set inflates $\tau_d$ & L & Hash and sign probe set; report sensitivity\\
-Ethics: data use & L & Public, non-personal datasets under their licenses\\
+Shift depends on data & M & Keep a small in-domain probe set on the host\\
+Bound too loose & M & Use a joint quantile instead of a union bound\\
+``Why not recalibrate?'' & M & Measure data size and privacy cost; report B2\\
+SWaT access delayed & M & Start with SMD and SMAP/MSL\\
+Board or toolchain fails & L & Two boards are enough; drop RP2350 first\\
+Tampered probe set & L & Hash and sign the probe set\\
+Data ethics & L & Public, non-personal data only\\
 \bottomrule
 \end{tabular}
 \end{table}
