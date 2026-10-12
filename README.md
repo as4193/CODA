@@ -1,4 +1,4 @@
-# Calibrate Once, Deploy Anywhere
+# CODA: Calibrate Once, Deploy Anywhere
 
 Reliable false-alarm control for quantized anomaly detectors on heterogeneous microcontrollers (STM32, ESP32, RP2350).
 

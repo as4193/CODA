@@ -12,7 +12,7 @@
 - AI use must be disclosed in every deliverable (see docs/course_guidelines.md). Never fabricate references or author names; leave \todo{} instead.
 
 ## The project (decided)
-**Title:** Calibrate Once, Deploy Anywhere: Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers.
+**Name:** CODA. **Title:** CODA: Calibrate Once, Deploy Anywhere — Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers.
 
 **Problem:** A conformal anomaly-detection threshold calibrated at full precision is copied to INT8 microcontrollers. Quantization shifts scores (keeps ranking), so the false-alarm guarantee silently breaks. Recalibrating each device is impractical (data size, privacy, fleet cost).
 
@@ -29,7 +29,7 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
 - [x] Filled \todo{}s: last name, ref authors [10]–[15] (verified online), AI disclosure. [10] is a NeurIPS *workshop* paper.
 - [ ] Compile on Overleaf (IEEEtran.cls was not available in the sandbox; PREVIEW.pdf is an approximation — do NOT submit it). Check it is ≤ 3 pages incl. references.
 - [ ] Submit PDF + .tex (Week 6)
-- [ ] Create public GitHub repo: https://github.com/as4193/calibrate-once-deploy-anywhere (URL already in proposal)
+- [ ] Create public GitHub repo: https://github.com/as4193/CODA (URL already in proposal)
 - [ ] Buy/borrow boards: STM32 Nucleo, ESP32-S3, Raspberry Pi Pico 2 (< 100 USD; ask labmates first — lab likely has STM32/ESP32)
 
 ## Milestones (from guidelines)

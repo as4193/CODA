@@ -14,7 +14,7 @@
 
 \begin{document}
 
-\title{Calibrate Once, Deploy Anywhere: Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers}
+\title{CODA: Calibrate Once, Deploy Anywhere---Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers}
 
 \author{\IEEEauthorblockN{Abdelaziz Saud}
 \IEEEauthorblockA{PhD Program: Computer Science\\
@@ -25,7 +25,7 @@ Course 1501830, Fall 2026/2027 \quad Instructor: Dr.\ Hamza Ouarnoughi}}
 \maketitle
 
 \begin{abstract}
-Anomaly detectors for cyber-physical systems are calibrated at full precision and then quantized to run on microcontrollers. Quantization shifts the anomaly-score distribution while largely preserving its ranking, so a conformal threshold inherited from the full-precision model can silently lose its false-alarm guarantee. We propose to calibrate the threshold once on a host GPU and give each device a label-free correction measured from how its integer arithmetic perturbs the score. We will test whether this keeps the realized false-alarm rate within a target bound on three microcontroller families (STM32, ESP32, RP2350) using public industrial anomaly-detection benchmarks, and report latency and memory overhead on each board.
+Anomaly detectors for cyber-physical systems are calibrated at full precision and then quantized to run on microcontrollers. Quantization shifts the anomaly-score distribution while largely preserving its ranking, so a conformal threshold inherited from the full-precision model can silently lose its false-alarm guarantee. We propose CODA (Calibrate Once, Deploy Anywhere), which calibrates the threshold once on a host GPU and gives each device a label-free correction measured from how its integer arithmetic perturbs the score. We will test whether this keeps the realized false-alarm rate within a target bound on three microcontroller families (STM32, ESP32, RP2350) using public industrial anomaly-detection benchmarks, and report latency and memory overhead on each board.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -80,7 +80,7 @@ Fig.~\ref{fig:pipeline} shows the pipeline. (1) Windows of length 64 (stride 1) 
 \node[box, right=of c, fill=black!20] (d) {Flash\\ $\tau_d=\tau+\hat q_d$\\ to board $d$};
 \draw[->] (a) -- (b); \draw[->] (b) -- (c); \draw[->] (c) -- (d);
 \end{tikzpicture}
-\caption{Calibrate-once, deploy-anywhere pipeline. Only one number, $\tau_d$, is sent to each board.}
+\caption{The CODA pipeline. Only one number, $\tau_d$, is sent to each board.}
 \label{fig:pipeline}
 \end{figure}
 
@@ -134,7 +134,7 @@ Ethics: data use & L & Public, non-personal datasets under their licenses\\
 Week 6: proposal. Weeks 7--10: data pipeline, training and calibration, quantization for three boards, baselines B1--B2; Progress Report~1 (Week 10). Weeks 11--13: proof of the bound, on-device runs, E1--E3, baselines B3--B4; Progress Report~2 (Week 13). Weeks 14--16: E4, time-series extension, 6--8 page IEEE paper, artifact, and defense (Week 16).
 
 \section{Reproducibility and Ethics}
-Repository: \url{https://github.com/as4193/calibrate-once-deploy-anywhere}, containing training, quantization, firmware, and evaluation code. Seeds 0--4 are fixed for training and splits. Data versions: SMD from the OmniAnomaly release, SWaT by its release date, with checksums recorded. Environment: Python, PyTorch, TensorFlow/TFLite Micro, STM32CubeIDE, and ESP-IDF versions pinned in an environment file and Dockerfile. Ethical, privacy, or security notes: only public, non-personal industrial data are used; the probe-set tampering risk is analyzed in Table~\ref{tab:risk}.
+Repository: \url{https://github.com/as4193/CODA}, containing training, quantization, firmware, and evaluation code. Seeds 0--4 are fixed for training and splits. Data versions: SMD from the OmniAnomaly release, SWaT by its release date, with checksums recorded. Environment: Python, PyTorch, TensorFlow/TFLite Micro, STM32CubeIDE, and ESP-IDF versions pinned in an environment file and Dockerfile. Ethical, privacy, or security notes: only public, non-personal industrial data are used; the probe-set tampering risk is analyzed in Table~\ref{tab:risk}.
 
 \section*{AI Assistance Disclosure}
 Claude (Anthropic) was used to brainstorm project directions, search and summarize recent literature, and draft the proposal text and LaTeX, and to look up author lists for recent references. I verified the title, authors, and venue of each reference against the original paper or its arXiv/publisher page, and checked the method, hypothesis, and experiment plan against the course guidelines. I reviewed and edited the final text and take responsibility for its content.
