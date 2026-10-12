@@ -3,7 +3,8 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{cite}
 \usepackage{iftex}
-\ifXeTeX % local Tectonic build: use Times like IEEEtran does under pdfLaTeX
+\ifXeTeX % XeLaTeX: use Times, as IEEEtran does under pdfLaTeX
+  \AtBeginDocument{\special{pdf:docinfo << /Title (CODA: Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers) /Author (Abdelaziz Saud) /Creator (LaTeX) /Producer (LaTeX) >>}}
   \usepackage{fontspec}\setmainfont{texgyretermes}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
 \fi
 \usepackage{amsmath,amssymb}
