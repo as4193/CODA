@@ -29,7 +29,7 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
 - [x] Filled \todo{}s: last name, ref authors [10]–[15] (verified online), AI disclosure. [10] is a NeurIPS *workshop* paper.
 - [ ] Compile on Overleaf (IEEEtran.cls was not available in the sandbox; PREVIEW.pdf is an approximation — do NOT submit it). Check it is ≤ 3 pages incl. references.
 - [ ] Submit PDF + .tex (Week 6)
-- [ ] Create public GitHub repo: https://github.com/as4193/CODA (URL already in proposal)
+- [x] Public GitHub repo: https://github.com/as4193/CODA (local folder: topics_ai/coda)
 - [ ] Buy/borrow boards: STM32 Nucleo, ESP32-S3, Raspberry Pi Pico 2 (< 100 USD; ask labmates first — lab likely has STM32/ESP32)
 
 ## Milestones (from guidelines)
