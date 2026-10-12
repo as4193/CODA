@@ -6,6 +6,8 @@
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage{booktabs}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta}
 \usepackage{url}
@@ -47,7 +49,7 @@ Table~\ref{tab:rw} summarizes the closest work. A NeurIPS 2026 workshop study sh
 \caption{Closest work and what it leaves open}
 \label{tab:rw}
 \centering\footnotesize
-\begin{tabular}{@{}p{2.0cm}p{2.9cm}p{2.9cm}@{}}
+\begin{tabular}{@{}L{2.0cm}L{2.9cm}L{2.9cm}@{}}
 \toprule
 Work & Contribution & Open\\ \midrule
 VLA monitors~\cite{vla2026} & Inherited threshold fails under quantization & No guarantee; simulated; not sensors\\
@@ -98,7 +100,7 @@ Table~\ref{tab:exp} lists the planned experiments. E1 tests the failure; E2 test
 \caption{Planned experiments}
 \label{tab:exp}
 \centering\footnotesize
-\begin{tabular}{@{}lp{2.2cm}p{2.3cm}p{2.0cm}@{}}
+\begin{tabular}{@{}lL{2.2cm}L{2.3cm}L{2.0cm}@{}}
 \toprule
 ID & Question & Variants & Output\\ \midrule
 E1 & Does inheriting $\tau$ break? & 3 boards, 3 datasets & FAR vs.\ $\alpha$, AUC\\
@@ -116,7 +118,7 @@ Table~\ref{tab:risk} lists the main risks.
 \caption{Risk register}
 \label{tab:risk}
 \centering\footnotesize
-\begin{tabular}{@{}p{2.3cm}p{0.6cm}p{4.9cm}@{}}
+\begin{tabular}{@{}L{2.3cm}L{0.75cm}L{4.65cm}@{}}
 \toprule
 Risk & Level & Mitigation\\ \midrule
 Technical: shift depends on data (H2 fails) & M & Keep a small in-domain probe set on the host; report how much is needed\\

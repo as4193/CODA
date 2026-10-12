@@ -27,7 +27,7 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
 - [x] Topic chosen after novelty check (other 5 candidate ideas were already published — see literature_notes.md)
 - [x] Proposal written in the professor's IEEEtran template: proposal/Research_Proposal_IEEE.tex (3 pages)
 - [x] Filled \todo{}s: last name, ref authors [10]–[15] (verified online), AI disclosure. [10] is a NeurIPS *workshop* paper.
-- [ ] Compile on Overleaf (IEEEtran.cls was not available in the sandbox; PREVIEW.pdf is an approximation — do NOT submit it). Check it is ≤ 3 pages incl. references.
+- [x] Compiled locally with Tectonic (`cd proposal && tectonic Research_Proposal_IEEE.tex`): 3 pages, no overfull boxes. Output: proposal/Research_Proposal_IEEE.pdf
 - [ ] Submit PDF + .tex (Week 6)
 - [x] Public GitHub repo: https://github.com/as4193/CODA (local folder: topics_ai/coda)
 - [ ] Buy/borrow boards: STM32 Nucleo, ESP32-S3, Raspberry Pi Pico 2 (< 100 USD; ask labmates first — lab likely has STM32/ESP32)
