@@ -10,9 +10,9 @@
 7. Seeds 0–4 for training and splits; report means + 95% CIs.
 
 ## Data
-- SMD (Server Machine Dataset, OmniAnomaly release) — primary.
-- SWaT — industrial CPS case; request access from iTrust (SUTD) early (risk: delay).
-- NASA SMAP/MSL — backup.
+- SMD (Server Machine Dataset, OmniAnomaly release) - primary.
+- SWaT - industrial CPS case; request access from iTrust (SUTD) early (risk: delay).
+- NASA SMAP/MSL - backup.
 - Note Wu & Keogh (TKDE 2023) benchmark critique → main metric is FAR on normal data.
 
 ## Hardware (< 100 USD total)

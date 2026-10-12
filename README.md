@@ -7,10 +7,10 @@ A conformal anomaly threshold is calibrated once at full precision on a GPU host
 Course project, 1501830 Topics in Artificial Intelligence, University of Sharjah (Fall 2026/2027).
 
 ## Layout
-- `src/` — data, training, calibration, quantization, evaluation (Python)
-- `firmware/` — per-board TFLite Micro inference and UART score streaming
-- `experiments/` — configs for E1–E4
-- `proposal/` — research proposal (IEEEtran)
+- `src/`: data, training, calibration, quantization, evaluation (Python)
+- `firmware/`: per-board TFLite Micro inference and UART score streaming
+- `experiments/`: configs for E1–E4
+- `proposal/`: research proposal (IEEEtran)
 
 ## Reproducibility
 Seeds 0–4. Dataset versions and checksums, and pinned environment (environment.yml / Dockerfile), will be added with the first code release.

@@ -15,12 +15,13 @@
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta}
 \usepackage{url}
+\usepackage{balance}
 \newcommand{\todo}[1]{{\color{red}[#1]}}
 \newif\ifsurvey \surveyfalse % set \surveytrue only for an approved systematic-review project
 
 \begin{document}
 
-\title{CODA: Calibrate Once, Deploy Anywhere---Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers}
+\title{CODA: Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers}
 
 \author{\IEEEauthorblockN{Abdelaziz Saud}
 \IEEEauthorblockA{PhD Program: Computer Science\\
@@ -31,7 +32,7 @@ Course 1501830, Fall 2026/2027 \quad Instructor: Dr.\ Hamza Ouarnoughi}}
 \maketitle
 
 \begin{abstract}
-Anomaly detectors for cyber-physical systems are calibrated at full precision and then quantized to run on microcontrollers. Quantization shifts the anomaly-score distribution while largely preserving its ranking, so a conformal threshold inherited from the full-precision model can silently lose its false-alarm guarantee. We propose CODA (Calibrate Once, Deploy Anywhere), which calibrates the threshold once on a host GPU and gives each device a label-free correction measured from how its integer arithmetic perturbs the score. We will test whether this keeps the realized false-alarm rate within a target bound on three microcontroller families (STM32, ESP32, RP2350) using public industrial anomaly-detection benchmarks, and report latency and memory overhead on each board.
+Anomaly detectors for cyber-physical systems are calibrated at full precision and then quantized to run on microcontrollers. Quantization shifts the anomaly-score distribution while largely preserving its ranking, so a conformal threshold inherited from the full-precision model can lose its false-alarm guarantee while accuracy metrics such as AUC show no change. We propose CODA (Calibrate Once, Deploy Anywhere), which calibrates the threshold once on a host GPU and gives each device a label-free correction measured from how its integer arithmetic perturbs the score. We will test whether this keeps the realized false-alarm rate within a target bound on three microcontroller families (STM32, ESP32, RP2350) using public industrial anomaly-detection benchmarks, and report latency and memory overhead on each board.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -39,15 +40,28 @@ conformal prediction, anomaly detection, quantization, TinyML, cyber-physical sy
 \end{IEEEkeywords}
 
 \section{Problem Statement and Motivation}
-Industrial sensors increasingly detect faults on the device itself, which cuts latency and keeps raw data local. To fit in kilobytes of SRAM, models are converted to 8-bit integers (INT8) after training~\cite{jacob2018,david2021,lin2020}. Operators also need a predictable false-alarm rate. Conformal anomaly detection provides one: a threshold that bounds false alarms on normal data at a chosen level $\alpha$~\cite{bates2023,angelopoulos2023}. That guarantee holds only for the model that was calibrated.
+Industrial sensors increasingly detect faults on the device itself, which cuts latency and keeps raw data local. To fit in kilobytes of SRAM, models are converted to 8-bit integers (INT8) after training~\cite{jacob2018,david2021,lin2020}. Operators also need a predictable false-alarm rate. Conformal anomaly detection sets a threshold that bounds false alarms on normal data at a chosen level $\alpha$~\cite{bates2023,angelopoulos2023}. This bound holds only for the model used in calibration.
 
-In practice, the threshold is set once at full precision and copied to every device. Each device runs a different integer model, with its own kernels and rounding, so its scores drift and the guarantee is lost. Recalibrating on every device is often impractical: calibration data may be too large for flash, too sensitive to ship, or too costly to collect for each hardware variant in a fleet.
+In practice, the threshold is set once at full precision and copied to every device. Each device runs a different integer model, with its own kernels and rounding, so its scores drift and the guarantee is lost. Recalibrating each device is often impractical. The calibration set may not fit in flash, and its owner may not be allowed to copy it to every device in a fleet.
 
 \textbf{Research question:} Can a threshold calibrated once at full precision, plus a label-free per-device shift correction, keep the realized false-alarm rate of INT8 anomaly detectors on heterogeneous microcontrollers within a target bound?\\
 \textbf{Hypothesis:} On all three boards, the corrected threshold keeps the false-alarm rate on normal test data within $\alpha+\delta$ (with $\delta=0.01$, for $\alpha\in\{0.01,0.05\}$), while the inherited threshold exceeds it, and detection recall stays within 5 percentage points of per-device recalibration.
 
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[node distance=0.9cm, box/.style={draw, rounded corners=2pt, fill=black!8, align=center, font=\footnotesize, minimum height=1.1cm, text width=3.1cm}, >={Stealth[length=5pt]}]
+\node[box] (a) {Train and calibrate $\tau$\\ (FP32, host GPU)};
+\node[box, right=of a] (b) {Quantize per board\\ (INT8 PTQ)};
+\node[box, right=of b] (c) {Measure shift $\Delta_d$ on\\ $m$ unlabeled probes};
+\node[box, right=of c, fill=black!20] (d) {Flash $\tau_d=\tau+\hat q_d$\\ to board $d$};
+\draw[->] (a) -- (b); \draw[->] (b) -- (c); \draw[->] (c) -- (d);
+\end{tikzpicture}
+\caption{The CODA pipeline. Calibration data stays on the host; each board receives one number, $\tau_d$.}
+\label{fig:pipeline}
+\end{figure*}
+
 \section{Related Work and Research Gap}
-Table~\ref{tab:rw} summarizes the closest work. A NeurIPS 2026 workshop study showed that 4-bit quantization of robot-policy failure detectors leaves AUC almost unchanged while the coverage of an inherited conformal threshold drops from 0.77 to 0.41 (target 0.90), because quantization roughly translates the score distribution~\cite{vla2026}; its repair is empirical and its quantization simulated. A 2026 benchmark measured conformal prediction on compressed LLMs, but recalibrates every compressed model~\cite{compress2026}. A retrieval study certifies when quantized outputs match full-precision ones, not false-alarm rates~\cite{retrieval2026}. On microcontrollers, TCUQ and HDUQ-HAR run conformal calibration on the deployed model directly~\cite{tcuq2025,hduq2026}. Meanwhile, INT8 kernel paths have been shown to diverge layer by layer~\cite{alibi2026}, so each chip may need its own correction. Conformal theory for non-exchangeable data exists~\cite{barber2023,gibbs2021} but has not been applied to this setting.
+Table~\ref{tab:rw} summarizes the closest work. A NeurIPS 2026 workshop study showed that 4-bit quantization of robot-policy failure detectors leaves AUC almost unchanged while the coverage of an inherited conformal threshold drops from 0.77 to 0.41 (target 0.90), because quantization roughly translates the score distribution~\cite{vla2026}; its repair is empirical and its quantization simulated. A 2026 benchmark measured conformal prediction on compressed LLMs, but recalibrates every compressed model~\cite{compress2026}. A retrieval study gives a conformal certificate that quantized and full-precision outputs agree~\cite{retrieval2026}; it does not address false alarms. On microcontrollers, TCUQ and HDUQ-HAR run conformal calibration on the deployed model directly~\cite{tcuq2025,hduq2026}. INT8 kernel paths on different hardware also diverge layer by layer~\cite{alibi2026}, which suggests that each chip needs its own correction. Conformal theory for non-exchangeable data exists~\cite{barber2023,gibbs2021} but has not been applied to this setting.
 
 \begin{table}[t]
 \caption{Closest work and what it leaves open}
@@ -64,7 +78,7 @@ TCUQ, HDUQ~\cite{tcuq2025,hduq2026} & On-MCU conformal & No FP-to-INT transfer\\
 \end{tabular}
 \end{table}
 
-\textbf{Research gap.} No existing method restores a conformal false-alarm guarantee for a full-precision threshold deployed on integer hardware, with proof, on real microcontrollers, for streaming sensor data.
+To our knowledge, no existing method restores a conformal false-alarm guarantee for a full-precision threshold deployed on integer hardware, with proof, on real microcontrollers, for streaming sensor data.
 
 \section{Proposed Method}
 \subsection{Problem Formulation}
@@ -77,22 +91,14 @@ where $\hat q_d$ is the $\lceil (m+1)(1-\delta)\rceil$-th smallest of $\Delta_d$
 \subsection{Approach}
 Fig.~\ref{fig:pipeline} shows the pipeline. (1) Windows of length 64 (stride 1) are z-normalized with training statistics. (2) A 1D-convolutional autoencoder (three conv layers, under 100\,KB in INT8) is trained on normal windows; the score is reconstruction mean-squared error. The last 20\% of normal training data, split in time, is the calibration set. (3) Each board's model is produced by TensorFlow Lite full-integer post-training quantization with 500 representative windows, and compiled with TFLite Micro using CMSIS-NN (STM32, RP2350) or ESP-NN (ESP32)~\cite{david2021}. (4) $m=500$ probe windows are streamed to each board over UART; on-device scores give $\Delta_d$. (5) $\tau_d$ is flashed to the board. No calibration data leaves the host.
 
-\begin{figure}[t]
-\centering
-\begin{tikzpicture}[node distance=0.25cm, box/.style={draw, rounded corners=2pt, fill=black!8, align=center, font=\scriptsize, minimum height=0.95cm, text width=1.55cm}, >={Stealth[length=4pt]}]
-\node[box] (a) {Train \&\\ calibrate $\tau$\\ (FP32, host)};
-\node[box, right=of a] (b) {Quantize\\ per board\\ (INT8)};
-\node[box, right=of b] (c) {Measure shift\\ $\Delta_d$ on $m$\\ unlabeled probes};
-\node[box, right=of c, fill=black!20] (d) {Flash\\ $\tau_d=\tau+\hat q_d$\\ to board $d$};
-\draw[->] (a) -- (b); \draw[->] (b) -- (c); \draw[->] (c) -- (d);
-\end{tikzpicture}
-\caption{The CODA pipeline. Only one number, $\tau_d$, is sent to each board.}
-\label{fig:pipeline}
-\end{figure}
 
 \section{Evaluation Plan}
 \subsection{Datasets and Baselines}
-\textbf{Data:} Server Machine Dataset (SMD)~\cite{su2019} as the primary benchmark; SWaT (water treatment, by request) as the industrial case; NASA SMAP/MSL as a backup. Because common anomaly benchmarks have known flaws~\cite{wu2023}, the main metric is false-alarm rate on normal data, where labels are least disputed. \textbf{Hardware:} STM32 Nucleo (Cortex-M4/M7), ESP32-S3 (Xtensa LX7), and Raspberry Pi Pico~2 (RP2350, Cortex-M33), under 100~USD in total, plus existing lab GPUs. \textbf{Baselines:} (B1) inherited threshold $\tau$; (B2) per-device recalibration with the full calibration set (upper bound); (B3) on-device streaming quantile recalibration, in the spirit of TCUQ and adaptive conformal inference~\cite{tcuq2025,gibbs2021}; (B4) the label-free realignment repair of~\cite{vla2026}.
+The primary benchmark is the Server Machine Dataset (SMD)~\cite{su2019}. SWaT (water treatment, available on request) is the industrial case, and NASA SMAP/MSL is the backup. Common anomaly benchmarks have known labeling flaws~\cite{wu2023}, so the main metric is the false-alarm rate on normal data, where labels are least disputed.
+
+The boards are an STM32 Nucleo (Cortex-M4/M7), an ESP32-S3 (Xtensa LX7), and a Raspberry Pi Pico~2 (RP2350, Cortex-M33), costing under 100~USD in total. Training uses existing lab GPUs.
+
+We compare against four baselines: (B1) the inherited threshold $\tau$; (B2) per-device recalibration with the full calibration set, as an upper bound; (B3) on-device streaming quantile recalibration, following TCUQ and adaptive conformal inference~\cite{tcuq2025,gibbs2021}; and (B4) the label-free realignment repair of~\cite{vla2026}.
 
 \subsection{Metrics}
 Task metrics: realized false-alarm rate versus target $\alpha\in\{0.01,0.05,0.1\}$, detection recall, and AUC. Systems measures: inference latency per window (on-chip cycle counter), peak SRAM, and flash, including the overhead of the correction. All results are averaged over 5 seeds (training and calibration split), with 95\% confidence intervals.
@@ -116,7 +122,7 @@ E4 & Robust to compression? & INT8 vs.\ INT4; 3 model sizes & FAR, recall, memor
 \end{table}
 
 \section{Risk Analysis}
-Table~\ref{tab:risk} lists the main risks.
+The largest risk is that the score shift depends on the input data and not only on the integer arithmetic. In that case a generic probe set would give the wrong correction; experiment E3 tests this directly. Table~\ref{tab:risk} lists all risks with their mitigations.
 
 \begin{table}[t]
 \caption{Risk register}
@@ -140,11 +146,12 @@ Ethics: data use & L & Public, non-personal datasets under their licenses\\
 Week 6: proposal. Weeks 7--10: data pipeline, training and calibration, quantization for three boards, baselines B1--B2; Progress Report~1 (Week 10). Weeks 11--13: proof of the bound, on-device runs, E1--E3, baselines B3--B4; Progress Report~2 (Week 13). Weeks 14--16: E4, time-series extension, 6--8 page IEEE paper, artifact, and defense (Week 16).
 
 \section{Reproducibility and Ethics}
-Repository: \url{https://github.com/as4193/CODA}, containing training, quantization, firmware, and evaluation code. Seeds 0--4 are fixed for training and splits. Data versions: SMD from the OmniAnomaly release, SWaT by its release date, with checksums recorded. Environment: Python, PyTorch, TensorFlow/TFLite Micro, STM32CubeIDE, and ESP-IDF versions pinned in an environment file and Dockerfile. Ethical, privacy, or security notes: only public, non-personal industrial data are used; the probe-set tampering risk is analyzed in Table~\ref{tab:risk}.
+Repository: \url{https://github.com/as4193/CODA}. It currently holds the project structure and this proposal; training, quantization, firmware, and evaluation code will be added as each milestone is completed. Seeds 0--4 will be fixed for training and data splits. We will record the dataset versions (SMD from the OmniAnomaly release, SWaT by release date) with checksums, and pin the versions of Python, PyTorch, TensorFlow/TFLite Micro, STM32CubeIDE, and ESP-IDF in an environment file and a Dockerfile. Ethical, privacy, or security notes: only public, non-personal industrial data are used; the probe-set tampering risk is analyzed in Table~\ref{tab:risk}.
 
 \section*{AI Assistance Disclosure}
 Claude (Anthropic) was used to brainstorm project directions, search and summarize recent literature, and draft the proposal text and LaTeX, and to look up author lists for recent references. I verified the title, authors, and venue of each reference against the original paper or its arXiv/publisher page, and checked the method, hypothesis, and experiment plan against the course guidelines. I reviewed and edited the final text and take responsibility for its content.
 
+\balance
 \begin{thebibliography}{00}
 \bibitem{jacob2018} B. Jacob \textit{et al.}, ``Quantization and training of neural networks for efficient integer-arithmetic-only inference,'' in \textit{Proc.\ IEEE/CVF CVPR}, 2018.
 \bibitem{david2021} R. David \textit{et al.}, ``TensorFlow Lite Micro: Embedded machine learning for TinyML systems,'' in \textit{Proc.\ MLSys}, 2021.
