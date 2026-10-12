@@ -1,0 +1,159 @@
+% !TeX program = pdflatex
+% Research Proposal -- 1501830 Topics in Artificial Intelligence (IEEE conference style)
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\usepackage{url}
+\newcommand{\todo}[1]{{\color{red}[#1]}}
+\newif\ifsurvey \surveyfalse % set \surveytrue only for an approved systematic-review project
+
+\begin{document}
+
+\title{Calibrate Once, Deploy Anywhere: Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers}
+
+\author{\IEEEauthorblockN{Abdelaziz Saud}
+\IEEEauthorblockA{PhD Program: Computer Science\\
+University of Sharjah\\
+Student ID: U25200513 \quad Email: U25200513@sharjah.ac.ae\\
+Course 1501830, Fall 2026/2027 \quad Instructor: Dr.\ Hamza Ouarnoughi}}
+
+\maketitle
+
+\begin{abstract}
+Anomaly detectors for cyber-physical systems are calibrated at full precision and then quantized to run on microcontrollers. Quantization shifts the anomaly-score distribution while largely preserving its ranking, so a conformal threshold inherited from the full-precision model can silently lose its false-alarm guarantee. We propose to calibrate the threshold once on a host GPU and give each device a label-free correction measured from how its integer arithmetic perturbs the score. We will test whether this keeps the realized false-alarm rate within a target bound on three microcontroller families (STM32, ESP32, RP2350) using public industrial anomaly-detection benchmarks, and report latency and memory overhead on each board.
+\end{abstract}
+
+\begin{IEEEkeywords}
+conformal prediction, anomaly detection, quantization, TinyML, cyber-physical systems
+\end{IEEEkeywords}
+
+\section{Problem Statement and Motivation}
+Industrial sensors increasingly detect faults on the device itself, which cuts latency and keeps raw data local. To fit in kilobytes of SRAM, models are converted to 8-bit integers (INT8) after training~\cite{jacob2018,david2021,lin2020}. Operators also need a predictable false-alarm rate. Conformal anomaly detection provides one: a threshold that bounds false alarms on normal data at a chosen level $\alpha$~\cite{bates2023,angelopoulos2023}. That guarantee holds only for the model that was calibrated.
+
+In practice, the threshold is set once at full precision and copied to every device. Each device runs a different integer model, with its own kernels and rounding, so its scores drift and the guarantee is lost. Recalibrating on every device is often impractical: calibration data may be too large for flash, too sensitive to ship, or too costly to collect for each hardware variant in a fleet.
+
+\textbf{Research question:} Can a threshold calibrated once at full precision, plus a label-free per-device shift correction, keep the realized false-alarm rate of INT8 anomaly detectors on heterogeneous microcontrollers within a target bound?\\
+\textbf{Hypothesis:} On all three boards, the corrected threshold keeps the false-alarm rate on normal test data within $\alpha+\delta$ (with $\delta=0.01$, for $\alpha\in\{0.01,0.05\}$), while the inherited threshold exceeds it, and detection recall stays within 5 percentage points of per-device recalibration.
+
+\section{Related Work and Research Gap}
+Table~\ref{tab:rw} summarizes the closest work. A NeurIPS 2026 workshop study showed that 4-bit quantization of robot-policy failure detectors leaves AUC almost unchanged while the coverage of an inherited conformal threshold drops from 0.77 to 0.41 (target 0.90), because quantization roughly translates the score distribution~\cite{vla2026}; its repair is empirical and its quantization simulated. A 2026 benchmark measured conformal prediction on compressed LLMs, but recalibrates every compressed model~\cite{compress2026}. A retrieval study certifies when quantized outputs match full-precision ones, not false-alarm rates~\cite{retrieval2026}. On microcontrollers, TCUQ and HDUQ-HAR run conformal calibration on the deployed model directly~\cite{tcuq2025,hduq2026}. Meanwhile, INT8 kernel paths have been shown to diverge layer by layer~\cite{alibi2026}, so each chip may need its own correction. Conformal theory for non-exchangeable data exists~\cite{barber2023,gibbs2021} but has not been applied to this setting.
+
+\begin{table}[t]
+\caption{Closest work and what it leaves open}
+\label{tab:rw}
+\centering\footnotesize
+\begin{tabular}{@{}p{2.0cm}p{2.9cm}p{2.9cm}@{}}
+\toprule
+Work & Contribution & Open\\ \midrule
+VLA monitors~\cite{vla2026} & Inherited threshold fails under quantization & No guarantee; simulated; not sensors\\
+LLM benchmark~\cite{compress2026} & Conformal on compressed LLMs & Recalibrates each model\\
+Retrieval~\cite{retrieval2026} & Certifies FP/INT agreement & Not false-alarm control\\
+TCUQ, HDUQ~\cite{tcuq2025,hduq2026} & On-MCU conformal & No FP-to-INT transfer\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Research gap.} No existing method restores a conformal false-alarm guarantee for a full-precision threshold deployed on integer hardware, with proof, on real microcontrollers, for streaming sensor data.
+
+\section{Proposed Method}
+\subsection{Problem Formulation}
+Let $x$ be a sensor window, $s(x)$ the full-precision anomaly score, and $s_d(x)$ the score of the INT8 model on device $d$. Split-conformal calibration on $n$ normal windows sets $\tau$ as the $\lceil (n+1)(1-\alpha)\rceil$-th smallest calibration score~\cite{bates2023}. With score shift $\Delta_d(x)=s_d(x)-s(x)$, we set
+\begin{equation}
+\tau_d=\tau+\hat q_d,
+\end{equation}
+where $\hat q_d$ is the $\lceil (m+1)(1-\delta)\rceil$-th smallest of $\Delta_d$ over $m$ unlabeled probe windows. A union bound gives a false-alarm rate on device $d$ of at most $\alpha+\delta$ when probe and test windows are exchangeable; we will prove this formally and extend it to temporally dependent data using block calibration~\cite{barber2023}.
+
+\subsection{Approach}
+Fig.~\ref{fig:pipeline} shows the pipeline. (1) Windows of length 64 (stride 1) are z-normalized with training statistics. (2) A 1D-convolutional autoencoder (three conv layers, under 100\,KB in INT8) is trained on normal windows; the score is reconstruction mean-squared error. The last 20\% of normal training data, split in time, is the calibration set. (3) Each board's model is produced by TensorFlow Lite full-integer post-training quantization with 500 representative windows, and compiled with TFLite Micro using CMSIS-NN (STM32, RP2350) or ESP-NN (ESP32)~\cite{david2021}. (4) $m=500$ probe windows are streamed to each board over UART; on-device scores give $\Delta_d$. (5) $\tau_d$ is flashed to the board. No calibration data leaves the host.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[node distance=0.25cm, box/.style={draw, rounded corners=2pt, fill=black!8, align=center, font=\scriptsize, minimum height=0.95cm, text width=1.55cm}, >={Stealth[length=4pt]}]
+\node[box] (a) {Train \&\\ calibrate $\tau$\\ (FP32, host)};
+\node[box, right=of a] (b) {Quantize\\ per board\\ (INT8)};
+\node[box, right=of b] (c) {Measure shift\\ $\Delta_d$ on $m$\\ unlabeled probes};
+\node[box, right=of c, fill=black!20] (d) {Flash\\ $\tau_d=\tau+\hat q_d$\\ to board $d$};
+\draw[->] (a) -- (b); \draw[->] (b) -- (c); \draw[->] (c) -- (d);
+\end{tikzpicture}
+\caption{Calibrate-once, deploy-anywhere pipeline. Only one number, $\tau_d$, is sent to each board.}
+\label{fig:pipeline}
+\end{figure}
+
+\section{Evaluation Plan}
+\subsection{Datasets and Baselines}
+\textbf{Data:} Server Machine Dataset (SMD)~\cite{su2019} as the primary benchmark; SWaT (water treatment, by request) as the industrial case; NASA SMAP/MSL as a backup. Because common anomaly benchmarks have known flaws~\cite{wu2023}, the main metric is false-alarm rate on normal data, where labels are least disputed. \textbf{Hardware:} STM32 Nucleo (Cortex-M4/M7), ESP32-S3 (Xtensa LX7), and Raspberry Pi Pico~2 (RP2350, Cortex-M33), under 100~USD in total, plus existing lab GPUs. \textbf{Baselines:} (B1) inherited threshold $\tau$; (B2) per-device recalibration with the full calibration set (upper bound); (B3) on-device streaming quantile recalibration, in the spirit of TCUQ and adaptive conformal inference~\cite{tcuq2025,gibbs2021}; (B4) the label-free realignment repair of~\cite{vla2026}.
+
+\subsection{Metrics}
+Task metrics: realized false-alarm rate versus target $\alpha\in\{0.01,0.05,0.1\}$, detection recall, and AUC. Systems measures: inference latency per window (on-chip cycle counter), peak SRAM, and flash, including the overhead of the correction. All results are averaged over 5 seeds (training and calibration split), with 95\% confidence intervals.
+
+\subsection{Ablations and Comparisons}
+Table~\ref{tab:exp} lists the planned experiments. E1 tests the failure; E2 tests the hypothesis against B1--B4; E3 and E4 are ablations on probe source and size, and on bit-width and model size.
+
+\begin{table}[t]
+\caption{Planned experiments}
+\label{tab:exp}
+\centering\footnotesize
+\begin{tabular}{@{}lp{2.2cm}p{2.3cm}p{2.0cm}@{}}
+\toprule
+ID & Question & Variants & Output\\ \midrule
+E1 & Does inheriting $\tau$ break? & 3 boards, 3 datasets & FAR vs.\ $\alpha$, AUC\\
+E2 & Does $\tau_d$ hold? & Ours vs.\ B1--B4 & FAR, recall, latency, SRAM\\
+E3 & Is the shift numerical? & Probes: in-domain, other dataset, synthetic; $m\in\{50,200,500\}$ & FAR vs.\ probe source, $m$\\
+E4 & Robust to compression? & INT8 vs.\ INT4; 3 model sizes & FAR, recall, memory\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Risk Analysis}
+Table~\ref{tab:risk} lists the main risks.
+
+\begin{table}[t]
+\caption{Risk register}
+\label{tab:risk}
+\centering\footnotesize
+\begin{tabular}{@{}p{2.3cm}p{0.6cm}p{4.9cm}@{}}
+\toprule
+Risk & Level & Mitigation\\ \midrule
+Technical: shift depends on data (H2 fails) & M & Keep a small in-domain probe set on the host; report how much is needed\\
+Technical: bound too loose & M & Tighter joint quantile instead of union bound\\
+Novelty: ``why not recalibrate per device?'' & M & Quantify data size, privacy, and fleet cost; report B2 as upper bound\\
+Data: SWaT access delayed & M & Start with SMD and SMAP/MSL\\
+Compute: board or toolchain issues & L & Two boards suffice; drop RP2350 first\\
+Security: tampered probe set inflates $\tau_d$ & L & Hash and sign probe set; report sensitivity\\
+Ethics: data use & L & Public, non-personal datasets under their licenses\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Timeline and Deliverables}
+Week 6: proposal. Weeks 7--10: data pipeline, training and calibration, quantization for three boards, baselines B1--B2; Progress Report~1 (Week 10). Weeks 11--13: proof of the bound, on-device runs, E1--E3, baselines B3--B4; Progress Report~2 (Week 13). Weeks 14--16: E4, time-series extension, 6--8 page IEEE paper, artifact, and defense (Week 16).
+
+\section{Reproducibility and Ethics}
+Repository: \todo{GitHub URL}, containing training, quantization, firmware, and evaluation code. Seeds 0--4 are fixed for training and splits. Data versions: SMD from the OmniAnomaly release, SWaT by its release date, with checksums recorded. Environment: Python, PyTorch, TensorFlow/TFLite Micro, STM32CubeIDE, and ESP-IDF versions pinned in an environment file and Dockerfile. Ethical, privacy, or security notes: only public, non-personal industrial data are used; the probe-set tampering risk is analyzed in Table~\ref{tab:risk}.
+
+\section*{AI Assistance Disclosure}
+Claude (Anthropic) was used to brainstorm project directions, search and summarize recent literature, and draft the proposal text and LaTeX, and to look up author lists for recent references. I verified the title, authors, and venue of each reference against the original paper or its arXiv/publisher page, and checked the method, hypothesis, and experiment plan against the course guidelines. I reviewed and edited the final text and take responsibility for its content.
+
+\begin{thebibliography}{00}
+\bibitem{jacob2018} B. Jacob \textit{et al.}, ``Quantization and training of neural networks for efficient integer-arithmetic-only inference,'' in \textit{Proc.\ IEEE/CVF CVPR}, 2018.
+\bibitem{david2021} R. David \textit{et al.}, ``TensorFlow Lite Micro: Embedded machine learning for TinyML systems,'' in \textit{Proc.\ MLSys}, 2021.
+\bibitem{lin2020} J. Lin, W.-M. Chen, Y. Lin, J. Cohn, C. Gan, and S. Han, ``MCUNet: Tiny deep learning on IoT devices,'' in \textit{Proc.\ NeurIPS}, 2020.
+\bibitem{bates2023} S. Bates, E. Cand\`es, L. Lei, Y. Romano, and M. Sesia, ``Testing for outliers with conformal p-values,'' \textit{Ann.\ Statist.}, vol.~51, no.~1, 2023.
+\bibitem{angelopoulos2023} A. N. Angelopoulos and S. Bates, ``Conformal prediction: A gentle introduction,'' \textit{Found.\ Trends Mach.\ Learn.}, vol.~16, no.~4, pp.~494--591, 2023.
+\bibitem{barber2023} R. F. Barber, E. J. Cand\`es, A. Ramdas, and R. J. Tibshirani, ``Conformal prediction beyond exchangeability,'' \textit{Ann.\ Statist.}, vol.~51, no.~2, 2023.
+\bibitem{gibbs2021} I. Gibbs and E. Cand\`es, ``Adaptive conformal inference under distribution shift,'' in \textit{Proc.\ NeurIPS}, 2021.
+\bibitem{su2019} Y. Su, Y. Zhao, C. Niu, R. Liu, W. Sun, and D. Pei, ``Robust anomaly detection for multivariate time series through stochastic recurrent neural network,'' in \textit{Proc.\ ACM SIGKDD}, 2019.
+\bibitem{wu2023} R. Wu and E. J. Keogh, ``Current time series anomaly detection benchmarks are flawed and are creating the illusion of progress,'' \textit{IEEE Trans.\ Knowl.\ Data Eng.}, vol.~35, no.~3, 2023.
+\bibitem{vla2026} A. Bysani, ``Rank-preserving, threshold-breaking: Post-training silently decalibrates inherited safety monitors in VLA policies,'' in \textit{Proc.\ NeurIPS Workshop on Post-Training Adaptation of Robot Foundation Models (RoboPAD)}, 2026.
+\bibitem{compress2026} Y. Tong, Y. Wang, Y. Wan, T. Zhang, J. Dong, and J. Yuan, ``Does compression preserve uncertainty? A unified benchmark for quantized and sparse LLMs via conformal prediction,'' arXiv:2606.01850, 2026.
+\bibitem{retrieval2026} L. Zhou, A. Zirilli, D. Solombrino, R. Dess\`i, and E. Rodol\`a, ``The undetected damage of quantization on retrieval and how to fix it,'' arXiv:2609.24322, 2026.
+\bibitem{tcuq2025} I. Lamaakal, C. Yahyati, K. El Makkaoui, I. Ouahbi, and Y. Maleh, ``TCUQ: Single-pass uncertainty quantification from temporal consistency with streaming conformal calibration for TinyML,'' arXiv:2508.12905, 2025.
+\bibitem{hduq2026} I. Lamaakal, C. Yahyati, Y. Maleh, K. El Makkaoui, and I. Ouahbi, ``Efficient uncertainty aware human activity recognition on microcontrollers using hyperdimensional computing and conformal prediction,'' \textit{Sci.\ Rep.}, vol.~16, Art.~no.~26262, 2026.
+\bibitem{alibi2026} T.-R. Chen, ``The integer alibi: Localizing cross-kernel divergence in INT8-quantized LLM inference,'' arXiv:2608.13756, 2026.
+\end{thebibliography}
+\end{document}

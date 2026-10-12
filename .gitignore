@@ -1,0 +1,17 @@
+data/*
+!data/.gitkeep
+results/*
+!results/.gitkeep
+__pycache__/
+*.pyc
+.venv/
+*.aux
+*.log
+*.out
+*.synctex.gz
+build/
+.pio/
+
+# Course files (professor's material, not ours to publish)
+course_materials/
+proposal/Research_Proposal_PREVIEW.pdf
