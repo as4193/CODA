@@ -19,6 +19,7 @@ def build_autoencoder(length: int, n_features: int, width: int = 32) -> tf.keras
 def train(model: tf.keras.Model, x: np.ndarray, seed: int, epochs: int = 20,
           batch: int = 256) -> tf.keras.Model:
     tf.keras.utils.set_random_seed(seed)
+    tf.config.experimental.enable_op_determinism()
     model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss="mse")
     model.fit(x, x, epochs=epochs, batch_size=batch, validation_split=0.1, shuffle=True,
               callbacks=[tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)],

@@ -44,7 +44,7 @@ def _stack(blocks: list[np.ndarray], length: int, stride: int) -> np.ndarray:
 
 
 def make_splits(machine: str, protocol: str = "blocks", seed: int = 0, length: int = 64,
-                stride: int = 1, zscore: bool = False, block: int = 640) -> Splits:
+                stride: int = 1, zscore: bool = False, block: int = 128) -> Splits:
     """Split SMD for one machine.
 
     protocol="blocks": the (normal) SMD train series is cut into blocks of `block` steps,
