@@ -30,7 +30,8 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
 - [x] Compiled locally with Tectonic (`cd proposal && tectonic Research_Proposal_IEEE.tex`): 3 pages, no overfull boxes. Output: proposal/Research_Proposal_IEEE.pdf
 - [x] Proposal submitted (Week 6) as proposal_abdelaziz.zip
 - [x] Public GitHub repo: https://github.com/as4193/CODA (local folder: topics_ai/coda)
-- [ ] Buy/borrow boards: STM32 Nucleo, ESP32-S3, Raspberry Pi Pico 2 (< 100 USD; ask labmates first - lab likely has STM32/ESP32)
+- [ ] Buy boards (student works solo, no labmates): NUCLEO-F446RE, ESP32-S3-DevKitC-1, Pico 2, about 50-55 USD with cables. See docs/hardware.md.
+- [x] Firmware for all 3 boards compiles (PlatformIO in firmware/.pio-venv); tested against a virtual board on the Mac, bit-identical to host TFLite. See firmware/README.md.
 
 ## Host pipeline (started Oct 27, 2026)
 - Env: `.venv` (Python 3.11, TF 2.18). ~/.cache is root-owned on this Mac, so run uv with `UV_CACHE_DIR=~/Library/Caches/uv`.
@@ -43,6 +44,10 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
   3. INT8 PTQ of the small AE shifts scores only slightly: inherited-threshold excess FAR 0 to +1.6 pp on 3 machines. Need INT4 / per-tensor / vendor toolchains to see larger effects (bring E4 forward).
 
   4. Full E1 (28 machines x 5 seeds, blocks protocol, block=128, probes from cal): see docs/results_e1.md. INT8 harmless (<=0.5 pp excess); W4A8 breaks inherited tau (FAR 0.46 @ alpha 0.05), CODA holds (excess <= delta in 99% of runs) but costs 4-10 pp recall vs B2 (target <= 5 pp). Next: tighter correction (PR2), time protocol run, real boards/vendor toolchains.
+
+  5. Oct 27: training was NOT reproducible (weights initialized before seeding). Fixed in coda.model.train (clone_model after set_random_seed). Pre-fix results archived in results/_old_nondeterministic/. All numbers are being regenerated via experiments/cache_scores.py (scores for every variant + runtime) -> experiments/e3_correction.py.
+  6. Other toolchains (src/coda/runtimes.py): ONNX Runtime INT8 and ESP-DL (esp-ppq simulator, S3/P4) are NOT bit-identical to TFLite; ESP-DL shift ~8x TFLite's; a shared TFLite correction fails on ESP-DL, per-runtime CODA holds. TFLite's default XNNPACK delegate is also not bit-identical to reference kernels.
+  7. Strategic: with in-domain normal probes, plain recalibration on the m probes (B2m) matches or beats CODA. CODA's distinct value = works with public/synthetic probes (no private data on devices) and small m. Check on full cache.
 
 ## Milestones (from guidelines)
 Proposal W6 · Progress Report 1 W10 (literature, baseline, data pipeline) · Progress Report 2 W13 (core method, ablations) · Final 6–8 page IEEE paper + artifact + oral defense/demo W16.

@@ -16,3 +16,14 @@ build/
 course_materials/
 proposal/Research_Proposal_PREVIEW.pdf
 !data/smd_sha256.txt
+
+# Models built by scripts/coda_models.py (rebuild with scripts/export_model.py / board_probe.py)
+models/
+
+# Firmware tooling and generated sources
+firmware/.pio-venv/
+firmware/third_party/
+firmware/lib/tflm/
+firmware/host/coda_host
+firmware/esp32/sdkconfig.esp32s3
+firmware/esp32/managed_components/

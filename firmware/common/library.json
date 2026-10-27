@@ -1,0 +1,6 @@
+{
+  "name": "coda-common",
+  "version": "1.0.0",
+  "description": "CODA board runtime: TFLM inference, score, serial protocol (see firmware/README.md)",
+  "build": { "srcDir": ".", "includeDir": ".", "libLDFMode": "off" }
+}

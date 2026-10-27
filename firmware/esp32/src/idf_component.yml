@@ -1,0 +1,4 @@
+dependencies:
+  idf: ">=5.1"
+  espressif/esp-tflite-micro: "==1.4.1"   # TFLM + ESP-NN optimized int8 kernels
+  espressif/esp-nn: "==1.4.1"
