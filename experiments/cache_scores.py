@@ -60,7 +60,9 @@ def run(machine: str, seed: int, out: Path, protocol: str):
         scorer = build_runtime(rt, model, rep)
         for k, x in data.items():
             arrs[f"{rt}/{k}"] = scorer(x)
-    np.savez_compressed(out / f"{machine}_seed{seed}.npz", other_machine=other_m, **arrs)
+    tmp = out / f".{machine}_seed{seed}.tmp.npz"  # write then rename: a killed run leaves no partial file
+    np.savez_compressed(tmp, other_machine=other_m, **arrs)
+    tmp.replace(out / f"{machine}_seed{seed}.npz")
     print(f"{machine} seed{seed} done ({time.time() - t0:.0f}s)", flush=True)
 
 
