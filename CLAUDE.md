@@ -42,6 +42,8 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
   2. TFLite reference and optimized INT8 kernels are bit-identical on the host, and TFLM/CMSIS-NN/ESP-NN aim to be bit-exact too. So boards running the same TFLM model may show no per-device difference; heterogeneity likely comes from different vendor toolchains (STM32Cube.AI, ESP-DL) and quantization settings.
   3. INT8 PTQ of the small AE shifts scores only slightly: inherited-threshold excess FAR 0 to +1.6 pp on 3 machines. Need INT4 / per-tensor / vendor toolchains to see larger effects (bring E4 forward).
 
+  4. Full E1 (28 machines x 5 seeds, blocks protocol, block=128, probes from cal): see docs/results_e1.md. INT8 harmless (<=0.5 pp excess); W4A8 breaks inherited tau (FAR 0.46 @ alpha 0.05), CODA holds (excess <= delta in 99% of runs) but costs 4-10 pp recall vs B2 (target <= 5 pp). Next: tighter correction (PR2), time protocol run, real boards/vendor toolchains.
+
 ## Milestones (from guidelines)
 Proposal W6 · Progress Report 1 W10 (literature, baseline, data pipeline) · Progress Report 2 W13 (core method, ablations) · Final 6–8 page IEEE paper + artifact + oral defense/demo W16.
 
