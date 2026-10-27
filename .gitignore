@@ -15,3 +15,4 @@ build/
 # Course files (professor's material, not ours to publish)
 course_materials/
 proposal/Research_Proposal_PREVIEW.pdf
+!data/smd_sha256.txt

@@ -23,14 +23,24 @@
 See docs/project_plan.md for method details, experiments, baselines, risks.
 See docs/literature_notes.md for related work, the gap, and the novelty check.
 
-## Status (as of Oct 12, 2026)
+## Status (as of Oct 27, 2026)
 - [x] Topic chosen after novelty check (other 5 candidate ideas were already published - see literature_notes.md)
 - [x] Proposal written in the professor's IEEEtran template: proposal/Research_Proposal_IEEE.tex (3 pages)
 - [x] Filled \todo{}s: last name, ref authors [10]–[15] (verified online), AI disclosure. [10] is a NeurIPS *workshop* paper.
 - [x] Compiled locally with Tectonic (`cd proposal && tectonic Research_Proposal_IEEE.tex`): 3 pages, no overfull boxes. Output: proposal/Research_Proposal_IEEE.pdf
-- [ ] Submit PDF + .tex (Week 6)
+- [x] Proposal submitted (Week 6) as proposal_abdelaziz.zip
 - [x] Public GitHub repo: https://github.com/as4193/CODA (local folder: topics_ai/coda)
 - [ ] Buy/borrow boards: STM32 Nucleo, ESP32-S3, Raspberry Pi Pico 2 (< 100 USD; ask labmates first - lab likely has STM32/ESP32)
+
+## Host pipeline (started Oct 27, 2026)
+- Env: `.venv` (Python 3.11, TF 2.18). ~/.cache is root-owned on this Mac, so run uv with `UV_CACHE_DIR=~/Library/Caches/uv`.
+- TensorFlow only (no PyTorch): Keras -> TFLite INT8 -> TFLite Micro.
+- Code: src/coda/{data,model,conformal,quantize}.py; experiments/e1_host.py; tests/.
+- Findings so far:
+  1. SMD drifts: with a time-ordered split, even FP32 FAR is far above alpha (e.g. 0.59 at alpha=0.01 on machine-1-1). Not a quantization effect.
+     Decision: main metric = excess FAR (device minus host); the "blocks" protocol (shuffled 640-step blocks of train) checks the absolute alpha+delta bound; "time" protocol = realistic stress test.
+  2. TFLite reference and optimized INT8 kernels are bit-identical on the host, and TFLM/CMSIS-NN/ESP-NN aim to be bit-exact too. So boards running the same TFLM model may show no per-device difference; heterogeneity likely comes from different vendor toolchains (STM32Cube.AI, ESP-DL) and quantization settings.
+  3. INT8 PTQ of the small AE shifts scores only slightly: inherited-threshold excess FAR 0 to +1.6 pp on 3 machines. Need INT4 / per-tensor / vendor toolchains to see larger effects (bring E4 forward).
 
 ## Milestones (from guidelines)
 Proposal W6 · Progress Report 1 W10 (literature, baseline, data pipeline) · Progress Report 2 W13 (core method, ablations) · Final 6–8 page IEEE paper + artifact + oral defense/demo W16.
