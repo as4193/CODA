@@ -27,3 +27,23 @@ def coda_correction(probe_fp: np.ndarray, probe_dev: np.ndarray, delta: float) -
 def far(scores_normal: np.ndarray, tau: float) -> float:
     """Realized false-alarm rate on normal windows."""
     return float(np.mean(np.asarray(scores_normal) > tau))
+
+
+def coda_linear(probe_fp: np.ndarray, probe_dev: np.ndarray, cal_fp: np.ndarray,
+                alpha: float, delta: float, log: bool = False) -> float:
+    """Regression-adjusted CODA threshold for one device.
+
+    Fit s_d ~ a * s + b on the probes (in log space if `log`), take the conformal (1 - delta)
+    quantile r of the probe residuals, and return
+        tau_d = conformal (1 - alpha) quantile of {a * s + b} over host calibration scores, + r.
+    A device false alarm needs a * s + b above that quantile (prob <= alpha) or a residual
+    above r (prob <= delta), so FAR <= alpha + delta as before. The margin r only covers what
+    the line does not explain, so it is smaller than the raw-shift quantile when the shift
+    depends on the score.
+    """
+    f = np.log if log else (lambda v: np.asarray(v, dtype=np.float64))
+    p, pd, c = f(probe_fp), f(probe_dev), f(cal_fp)
+    a, b = np.polyfit(p, pd, 1)
+    r = conformal_quantile(pd - (a * p + b), 1 - delta)
+    t = threshold(a * c + b, alpha) + r
+    return float(np.exp(t)) if log else t

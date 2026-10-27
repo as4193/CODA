@@ -20,6 +20,9 @@ def train(model: tf.keras.Model, x: np.ndarray, seed: int, epochs: int = 20,
           batch: int = 256) -> tf.keras.Model:
     tf.keras.utils.set_random_seed(seed)
     tf.config.experimental.enable_op_determinism()
+    # Re-create the layers so initial weights also come from `seed`
+    # (the caller usually builds the model before the seed is set).
+    model = tf.keras.models.clone_model(model)
     model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss="mse")
     model.fit(x, x, epochs=epochs, batch_size=batch, validation_split=0.1, shuffle=True,
               callbacks=[tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)],
