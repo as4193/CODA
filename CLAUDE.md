@@ -23,7 +23,7 @@
 See docs/project_plan.md for method details, experiments, baselines, risks.
 See docs/literature_notes.md for related work, the gap, and the novelty check.
 
-## Status (as of Oct 27, 2026)
+## Status (as of Oct 29, 2026)
 - [x] Topic chosen after novelty check (other 5 candidate ideas were already published - see literature_notes.md)
 - [x] Proposal written in the professor's IEEEtran template: proposal/Research_Proposal_IEEE.tex (3 pages)
 - [x] Filled \todo{}s: last name, ref authors [10]–[15] (verified online), AI disclosure. [10] is a NeurIPS *workshop* paper.
@@ -54,6 +54,9 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
   9. CODA's real edge over B2m (recalibrate on m probes): per-device stability at small alpha/m (alpha=0.01, m=100: excess sd 0.001 vs 0.017 int8; xviol 0-3% vs ~10%). Probes from another SMD machine FAIL at 4-bit (shift is input-dependent) -> "public probes" claim must be limited.
   10. NASA SMAP/MSL added (scripts/get_nasa.sh). Host FAR far above alpha on several channels even with blocks -> report only excess on NASA. SMAP recall ~0.02 (anomaly likely in telemetry column only; consider telemetry-weighted score).
   11. Progress Report 1: syllabus says Week 9, guidelines say Week 10 -> plan for Week 9. Draft in docs/literature_review.md (+refs.bib, 56 verified refs).
+
+  12. Full SMD results (Oct 29; docs/results_e3_blocks.txt, docs/results_e3_time*.txt): B1 fails for W4A8 (+41.6 pp) and ESP-DL (+3.3 pp); all corrections keep mean excess <= delta; CODA union: <=2% runs over delta, -7 pp recall at 4 bits; CODA-J/conv: recall = B2, 11-34% runs over delta. Time split (drift, host FAR 0.37 @ alpha .05): CODA keeps excess <= delta in >=98.5% runs; CODA-J fails (14-53%).
+  13. Progress Report 1 drafted: reports/progress1/progress1.tex (4 pages; tables from experiments/make_tables.py). Student must confirm AI disclosure before submitting.
 
 ## Milestones (from guidelines)
 Proposal W6 · Progress Report 1 W10 (literature, baseline, data pipeline) · Progress Report 2 W13 (core method, ablations) · Final 6–8 page IEEE paper + artifact + oral defense/demo W16.
