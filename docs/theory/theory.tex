@@ -1,0 +1,237 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\theoremstyle{definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+\newcommand{\Q}{\widehat Q}
+\newcommand{\Prob}{\mathbb P}
+\newcommand{\E}{\mathbb E}
+\newcommand{\FAR}{\mathrm{FAR}}
+
+\begin{document}
+\title{CODA: Theory Notes\\{\normalsize Guarantees for host-calibrated, shift-corrected device thresholds}}
+\author{\IEEEauthorblockN{Abdelaziz Saud}\IEEEauthorblockA{University of Sharjah}}
+\maketitle
+
+\begin{abstract}
+We collect the finite-sample guarantees behind CODA: (i) the marginal union-bound guarantee with exact conformal ranks, (ii) its regression-adjusted variant and the data-reuse conditions it needs, (iii) a \emph{relative} guarantee (device false-alarm rate at most host rate plus $\delta$) that survives arbitrary calibration/test drift, with a training-conditional (PAC) version, (iv) a block version for dependent windows whose resolution is set by the number of blocks, and (v) tighter corrections. The union bound is sharp when only the two marginals are known (Makarov's bound), so tightening requires information about the \emph{joint} law of score and shift: paired in-domain probes (CODA-J) or a structural assumption (CODA-conv). Every result is checked numerically in \texttt{experiments/sim\_theory.py}.
+\end{abstract}
+
+\section{Setting and the conformal quantile}
+A window $x$ has host score $s(x)$ and device score $s_d(x)=s(x)+\Delta(x)$; $\Delta=\Delta_d$ is the device shift. An alarm is raised when the score exceeds a threshold. We have $n$ host calibration windows $X_1,\dots,X_n$ with scores $S_i=s(X_i)$, $m$ probe windows $Z_1,\dots,Z_m$ with shifts $D_j=\Delta(Z_j)$, and a normal test window $X$ with $S=s(X)$, $D=\Delta(X)$. The device false-alarm rate of a (data-dependent) threshold $t$ is $\FAR_d(t)=\Prob(s_d(X)>t)$, where $\Prob$ is over all randomness unless stated; $\FAR_{\mathrm{host}}(t)=\Prob(s(X)>t)$.
+
+\begin{definition}[Conformal quantile]
+For $v_1,\dots,v_N$ and $\beta\in(0,1)$ let $k_N(\beta)=\lceil (N+1)\beta\rceil$ and $\Q_\beta(v_{1:N})=v_{(k_N(\beta))}$, the $k_N(\beta)$-th smallest value, with $\Q_\beta=+\infty$ if $k_N(\beta)>N$. This is \texttt{conformal\_quantile} in \texttt{coda/conformal.py}. It is finite iff $N\ge (\beta)/(1-\beta)$, e.g.\ $N\ge 99$ for $\beta=0.99$.
+\end{definition}
+
+\begin{lemma}[Split conformal \cite{vovk2005,lei2018,angelopoulos2023}]\label{lem:cp}
+If $(V_1,\dots,V_N,V_{N+1})$ is exchangeable, then $\Prob(V_{N+1}>\Q_\beta(V_{1:N}))\le 1-\beta$. If moreover ties occur with probability zero and $k_N(\beta)\le N$, then $\Prob(V_{N+1}>\Q_\beta(V_{1:N}))\ge 1-\beta-\tfrac{1}{N+1}$.
+\end{lemma}
+\begin{proof}
+Write $k=k_N(\beta)$. If $k>N$ the bound is trivial. Otherwise $V_{N+1}>V_{(k)}$ among $V_{1:N}$ iff the rank of $V_{N+1}$ among all $N+1$ values is $>k$ (counting ties in its favour). By exchangeability the rank is uniform on $\{1,\dots,N+1\}$ without ties and stochastically larger than a ``favourable'' tie-broken uniform rank otherwise, so the probability is $\le (N+1-k)/(N+1)\le 1-\beta$; without ties it equals $(N+1-k)/(N+1)\ge 1-\beta-1/(N+1)$ because $k<(N+1)\beta+1$.
+\end{proof}
+
+\section{Marginal guarantee of CODA}
+CODA sets $\tau=\Q_{1-\alpha}(S_{1:n})$, $\hat q=\Q_{1-\delta}(D_{1:m})$ and $\tau_d=\tau+\hat q$.
+
+\begin{assumption}\label{ass:exch}
+(A1) $(S_1,\dots,S_n,S)$ is exchangeable. (A2) $(D_1,\dots,D_m,D)$ is exchangeable.
+\end{assumption}
+No independence between calibration and probes is required: (A1) and (A2) are separate marginal statements, and both hold, e.g., when calibration, probe and test windows are i.i.d.\ draws from the same normal law, \emph{even if the probes are a subset of the calibration windows}.
+
+\begin{theorem}[Marginal validity]\label{thm:coda}
+Under Assumption~\ref{ass:exch},
+\[
+\FAR_d(\tau_d)\le \underbrace{\Prob(S>\tau)}_{\le\alpha}+\underbrace{\Prob(D>\hat q)}_{\le\delta}\le\alpha+\delta .
+\]
+If host scores have no ties a.s.\ and $n\ge(1-\alpha)/\alpha$, the host part is tight: $\alpha-\tfrac{1}{n+1}\le \FAR_{\mathrm{host}}(\tau)\le\alpha$; likewise $\delta-\tfrac{1}{m+1}\le\Prob(D>\hat q)\le\delta$ for continuous shifts and $m\ge(1-\delta)/\delta$.
+\end{theorem}
+\begin{proof}
+On $\{S\le\tau\}\cap\{D\le\hat q\}$ we have $s_d(X)=S+D\le\tau+\hat q$. Hence $\{s_d(X)>\tau_d\}\subseteq\{S>\tau\}\cup\{D>\hat q\}$; apply the union bound and Lemma~\ref{lem:cp} to each term with (A1), (A2).
+\end{proof}
+
+\begin{remark}[No matching lower bound for the device]
+Unlike the host, $\FAR_d(\tau_d)$ has no useful lower bound: the gap to $\alpha+\delta$ contains $\Prob(S>\tau,\ S+D\le\tau+\hat q)$, the host alarms removed by raising the threshold. With a heavy-tailed shift, $\hat q$ is large compared with the score spread near $\tau$, so the slack is close to $\alpha$; this is the observed FAR $\approx 0.02$ at $\alpha=0.05$ (W4A8, ESP-DL). Simulation T1: FAR $0.026$ vs.\ bound $0.06$.
+\end{remark}
+
+\begin{proposition}[The union bound is sharp given only marginals]\label{prop:makarov}
+Let $F_S$, $F_\Delta$ be fixed marginal laws. For every $t$,
+\begin{multline*}\sup_{\text{couplings}}\Prob(S+D>t)\\=\min\Bigl\{1,\ \inf_{u}\bigl[\Prob(S>u)+\Prob(D\ge t-u)\bigr]\Bigr\}\end{multline*}
+up to the usual left-limit conventions (exact for continuous marginals) \cite{makarov1981}. In particular, Theorem~\ref{thm:coda} cannot be improved without assumptions on the joint law.
+\end{proposition}
+\begin{proof}[Example attaining the bound]
+Let $U\sim\mathrm{Unif}(0,1)$, $S=U$ (so $\tau^*=1-\alpha$), and $D=\eta U$ if $U\le1-\alpha-\delta$, $D=1+U$ if $U\in(1-\alpha-\delta,1-\alpha]$, $D=1-\tfrac12(U-1+\alpha)$ if $U>1-\alpha$, with $0<\eta$ small and $\alpha+2\delta\le1$. Then $D$ is continuous with $\Prob(D>1)=\delta$, so $q^*=1$. On $\{U>1-\alpha\}$, $S+D=1+\tfrac12(U+1-\alpha)>2-\alpha$; on the band, $S+D=1+2U>2-\alpha$; on the bulk, $S+D\le(1-\alpha-\delta)(1+\eta)<2-\alpha$. Hence $\Prob(S+D>\tau^*+q^*)=\alpha+\delta$; as $n,m\to\infty$, $\tau\to\tau^*$, $\hat q\to q^*$ and the CODA FAR tends to $\alpha+\delta$. The general identity is Makarov's theorem.
+\end{proof}
+\begin{remark}
+Proposition~\ref{prop:makarov} says that when the calibration data only reveal the law of $S$ and the probes only reveal the law of $\Delta$ (out-of-domain probes), \emph{no} rule can be uniformly tighter than the union bound with the best split $(\alpha',\delta')$ of the budget. All tighter constructions in Sec.~\ref{sec:tight} therefore use extra information about the \emph{joint} law of $(s,\Delta)$ on test windows.
+\end{remark}
+
+\section{Regression-adjusted CODA}
+\texttt{coda\_linear} fits $g(v)=av+b$ by least squares to the probe pairs $(s(Z_j),s_d(Z_j))$, takes $\hat r=\Q_{1-\delta}(R_{1:m})$ of residuals $R_j=s_d(Z_j)-g(s(Z_j))$, and returns $\tau^g_d=\Q_{1-\alpha}(g(S_{1:n}))+\hat r$.
+
+\begin{theorem}[Validity of regression-adjusted CODA]\label{thm:lin}
+Let $g$ be any measurable function computed from data $\mathcal D_{\mathrm{fit}}$. Assume that conditionally on $\mathcal D_{\mathrm{fit}}$: (B1) $(S_1,\dots,S_n,S)$ is exchangeable, and (B2) $(R_1,\dots,R_{m'},R)$ is exchangeable, where $R_j$ are residuals on $m'$ residual probes and $R=s_d(X)-g(S)$. Then $\FAR_d(\tau^g_d)\le\alpha+\delta$. If $g$ is increasing (e.g.\ $a>0$), then $\Q_{1-\alpha}(g(S_{1:n}))=g(\tau)$ and the host event is exactly $\{S>\tau\}$.
+\end{theorem}
+\begin{proof}
+$s_d(X)=g(S)+R$, so $\{s_d(X)>\tau^g_d\}\subseteq\{g(S)>\Q_{1-\alpha}(g(S_{1:n}))\}\cup\{R>\hat r\}$. Given $\mathcal D_{\mathrm{fit}}$, $g$ is fixed, $(g(S_1),\dots,g(S_n),g(S))$ is exchangeable by (B1), and Lemma~\ref{lem:cp} applies to both terms; integrate over $\mathcal D_{\mathrm{fit}}$. Monotonicity of $g$ is not needed for validity because the quantile is taken over $g(S_i)$, not $g(\tau)$.
+\end{proof}
+
+\begin{remark}[Data reuse]
+(i) \emph{Calibration part.} If probes are drawn from the calibration windows, $g$ depends on some $S_i$ and (B1) fails conditionally on $\mathcal D_{\mathrm{fit}}$. The probes must be removed from the host calibration set, as \texttt{experiments/e3\_correction.py} does (\texttt{np.delete(fp\_cal, idx)}). For plain CODA (Theorem~\ref{thm:coda}) this removal is \emph{not} needed, but it is harmless. (ii) \emph{Residual part.} The current implementation fits $g$ and computes $\hat r$ on the \emph{same} probes; in-sample residuals are not exchangeable with the test residual, so (B2) holds only approximately (the effect is of order $p/m$ for $p=2$ parameters). In simulation T2 the residual exceedance is $0.0095$--$0.0100$ for $m\in\{100,200,500\}$ (target $0.01$), i.e.\ not detectable. A provably valid version fits $g$ on a separate fifth of the probes (or on any independent data, e.g.\ synthetic windows, which need not be exchangeable with the test windows at all) and computes $\hat r$ on the rest; this needs $m'\ge 99$ residual probes for $\delta=0.01$. Jackknife+ residuals \cite{barber2021jackknife} give a no-split alternative at level $2\delta$.
+\end{remark}
+
+\section{Relative guarantee under drift}\label{sec:rel}
+The main metric is the \emph{excess} false-alarm rate $\FAR_d-\FAR_{\mathrm{host}}$. It needs no assumption on the calibration data.
+
+\begin{theorem}[Device matches host]\label{thm:rel}
+Let $\tau$ be any threshold that is independent of the probes and the test window (for example a conformal quantile of calibration data from a \emph{different, drifted} distribution). Let the test window have arbitrary law $P_{\mathrm{test}}$, and let $Z_1,\dots,Z_m$ be i.i.d.\ from $P_{\mathrm{probe}}$, independent of $(\tau,X)$. Assume shift dominance:
+\begin{equation}\label{eq:dom}
+P_{\mathrm{test}}(\Delta(X)>c)\le P_{\mathrm{probe}}(\Delta(Z)>c)\quad\forall c,
+\end{equation}
+which holds with equality if $P_{\mathrm{probe}}=P_{\mathrm{test}}$. Write $\FAR_{\bullet}(t)=P_{\mathrm{test}}(\cdot>t)$ conditional on the thresholds. Then, for every realization,
+\begin{multline*}\FAR_d(\tau+\hat q)-\FAR_{\mathrm{host}}(\tau)\le\pi(\hat q)\\:=P_{\mathrm{test}}\bigl(\Delta(X)>\hat q,\ s(X)\le\tau\bigr),\end{multline*}
+and $\E[\pi(\hat q)]\le\delta$. Moreover, if $\hat q=D_{(k)}$ with
+\[k=k_{\mathrm{PAC}}(m,\delta,\gamma):=\min\{k:\Prob(\mathrm{Bin}(m,1-\delta)\ge k)\le\gamma\},\]
+then $\Prob\bigl(\FAR_d(\tau+\hat q)-\FAR_{\mathrm{host}}(\tau)>\delta\bigr)\le\gamma$.
+\end{theorem}
+\begin{proof}
+Pointwise, $\{s_d>\tau+\hat q\}\subseteq\{s>\tau\}\cup\{s\le\tau,\ \Delta>\hat q\}$, which gives the first inequality. By \eqref{eq:dom}, $\pi(\hat q)\le P_{\mathrm{probe}}(\Delta>\hat q)$. Let $D'$ be a fresh draw from $P_{\mathrm{probe}}$; $(D_1,\dots,D_m,D')$ is i.i.d., so $\E[P_{\mathrm{probe}}(\Delta>\hat q)]=\Prob(D'>\hat q)\le\delta$ by Lemma~\ref{lem:cp}. For the PAC part, let $\xi=\inf\{x:F(x)\ge1-\delta\}$, $F$ the c.d.f.\ of $D'$. If $D_{(k)}\ge\xi$ then $P_{\mathrm{probe}}(\Delta>D_{(k)})\le 1-F(\xi)\le\delta$. Otherwise at least $k$ of the $D_j$ are $<\xi$, and $\Prob(D_j<\xi)\le1-\delta$, so this has probability $\le\Prob(\mathrm{Bin}(m,1-\delta)\ge k)\le\gamma$. No continuity is needed. This is the training-conditional guarantee of \cite{vovk2012} (see also \cite{bates2021rcps}).
+\end{proof}
+
+\begin{remark}[What the experiments measure]
+(i) The bound is one-sided and per-$\tau$: it holds for the drifted ``time'' protocol as long as \eqref{eq:dom} holds. Probes taken from the training period do \emph{not} guarantee \eqref{eq:dom} if drift moves inputs into regions with larger quantization error; this is an assumption on the shift only, which is much weaker than exchangeability of scores. (ii) The ``viol'' column (share of runs with excess $>\delta$) is a training-conditional quantity. With the marginal rank $k=\lceil(m+1)(1-\delta)\rceil$ the PAC level is only $\gamma=0.44$ ($m=500$), $0.40$ ($m=200$), $0.37$ ($m=100$); the observed $\approx1\%$ comes from the union-bound slack, not from theory. For a guaranteed $\gamma=0.05$ use $k_{\mathrm{PAC}}(500,0.01,0.05)=499$. Simulation T3: cal/test drift with host FAR $0.149$ at $\alpha=0.05$; mean excess $-0.057$, no run above $\delta$.
+\end{remark}
+
+\section{Block-dependent windows}\label{sec:block}
+SMD windows overlap and are strongly dependent; the data are cut into shuffled 128-step blocks, and windows never cross blocks. The exchangeable units are blocks, not windows.
+
+\begin{assumption}\label{ass:block}
+Calibration blocks $B_1,\dots,B_K$ and the test block $B_{K+1}$ are exchangeable as random multisets of window scores; block $b$ holds $L_b\ge1$ scores with empirical c.d.f.\ $F_b$. The test window is uniform within $B_{K+1}$ (block-averaged FAR).
+\end{assumption}
+
+\begin{definition}[Block conformal quantile]
+$\Q^{\mathrm{blk}}_\beta=\inf\{t:\sum_{b=1}^K F_b(t)\ge\beta(K+1)\}$ ($+\infty$ if $\beta(K+1)>K$). With equal block sizes $L$ it is the $\lceil\beta(K+1)L\rceil$-th smallest of the $KL$ pooled scores.
+\end{definition}
+
+\begin{theorem}[Block split conformal]\label{thm:block}
+Under Assumption~\ref{ass:block}, $\tau^{\mathrm{blk}}=\Q^{\mathrm{blk}}_{1-\alpha}$ satisfies $\E[1-F_{K+1}(\tau^{\mathrm{blk}})]\le\alpha$, i.e.\ the window-level FAR is at most $\alpha$. Applying the same construction to probe blocks ($K_p$ blocks of shifts) and combining as in Theorem~\ref{thm:coda} gives $\FAR_d\le\alpha+\delta$, with $\hat q^{\mathrm{blk}}$ finite iff $K_p\ge(1-\delta)/\delta$.
+\end{theorem}
+\begin{proof}
+Let $T=\inf\{t:\sum_{b=1}^{K+1}F_b(t)\ge(1-\alpha)(K+1)\}$. Adding $F_{K+1}\ge0$ can only reach the target earlier, so $T\le\tau^{\mathrm{blk}}$ and $1-F_{K+1}(\tau^{\mathrm{blk}})\le1-F_{K+1}(T)$. $T$ is a symmetric function of the $K+1$ blocks, so by exchangeability $\E[1-F_{K+1}(T)]=\E\bigl[\tfrac{1}{K+1}\sum_{b=1}^{K+1}(1-F_b(T))\bigr]$. By right-continuity $\sum_bF_b(T)\ge(1-\alpha)(K+1)$, so the bracket is $\le\alpha$.
+\end{proof}
+
+\begin{corollary}[Pooled window-level quantile]\label{cor:naive}
+With equal block size $L$, the usual window-level rank $\lceil(KL+1)(1-\alpha)\rceil$ only guarantees $\FAR\le\alpha+(1-\alpha)\frac{L-1}{(K+1)L}<\alpha+\frac{1-\alpha}{K+1}$.
+\end{corollary}
+\begin{proof}
+Same argument with $T$ the $k$-th smallest of all $(K+1)L$ scores, $k=\lceil(KL+1)(1-\alpha)\rceil$: the fraction above $T$ is $\le1-k/((K+1)L)\le\alpha+(1-\alpha)(L-1)/((K+1)L)$.
+\end{proof}
+
+\begin{remark}[Resolution, and what it explains]
+The guarantee is in units of blocks: $1/(K+1)$ plays the role of $1/(n+1)$, and the bound cannot be improved without within-block assumptions (if all windows of a block share one score, the problem is conformal prediction with $K$ exchangeable scalars). For $\delta=0.01$ one needs $K_p\ge 99$ probe blocks ($\approx12.7$k steps at 128 steps per block). In E1 the probes come from the calibration blocks, roughly $30$ blocks (15\% of $\approx$200); Corollary~\ref{cor:naive} then allows a shift exceedance up to $\delta+0.03$, consistent with the observed $1.5$--$2.3\%$ exceedances at $\delta=0.01$. Simulation T4 ($K=33$, block-level heavy shift): window-level $\hat q$ is exceeded on $2.65\%$ of test windows (target $1\%$) and host FAR is $0.056>\alpha$; the block quantile is valid ($0.028$) but $\hat q^{\mathrm{blk}}=+\infty$ at $\delta=0.01$. With $K=150$: window-level $0.0137$, block-level $0.0073$.
+\end{remark}
+
+\begin{remark}[Approximate block exchangeability]
+Shuffled consecutive blocks of a stationary series are only approximately exchangeable (adjacent blocks are dependent at their boundaries). Barber et al.~\cite{barber2023} bound the coverage loss of split conformal by $\sum_{i}\tilde w_i\, d_{\mathrm{TV}}(Z,Z^{i})$, where $Z^{i}$ swaps unit $i$ with the test unit; applied with blocks as units, the loss is small when the series mixes on a scale shorter than the block length. Block-permutation conformal inference for dependent data is developed in \cite{chernozhukov2018}. A gap of a few windows between blocks reduces boundary dependence further.
+\end{remark}
+
+\section{Tighter corrections}\label{sec:tight}
+Proposition~\ref{prop:makarov} limits what any marginal-only method can do. We list the options and their status.
+
+\subsection{Optimal split of the budget (valid, small gain)}
+\begin{proposition}\label{prop:split}
+For any split $\alpha'+\delta'=\alpha+\delta$ fixed before seeing the data (or chosen on independent pilot data), $\tau(\alpha')+\hat q(\delta')$ is valid at $\alpha+\delta$. Choosing the split that minimizes the threshold on the \emph{same} data over a grid $G$ is only guaranteed at $\max_G\alpha'+\max_G\delta'$.
+\end{proposition}
+\begin{proof}
+The first claim is Theorem~\ref{thm:coda}. For the second, with $g^*$ the minimizer, $\{s_d>\tau(\alpha'_{g^*})+\hat q(\delta'_{g^*})\}\subseteq\bigcup_g\{S>\tau(\alpha'_g)\}\cup\bigcup_g\{D>\hat q(\delta'_g)\}=\{S>\tau(\max\alpha')\}\cup\{D>\hat q(\max\delta')\}$, since the thresholds are monotone in the level.
+\end{proof}
+In the population the optimal split equates the densities $f_S(\tau_{\alpha'})=f_\Delta(q_{\delta'})$ (first-order condition of $\min_{\alpha'}F_S^{-1}(1-\alpha')+F_\Delta^{-1}(1-\alpha-\delta+\alpha')$); with a heavy-tailed shift it moves budget to $\delta$. Simulation T5: $(0.04,0.02)$ instead of $(0.05,0.01)$ lowers the threshold by $14\%$ of the gap to the oracle and raises FAR from $0.026$ to $0.028$ only. The split is not the main source of conservativeness.
+
+\subsection{CODA-J: paired in-domain probes (valid, dominates CODA)}
+\begin{theorem}[CODA-J]\label{thm:joint}
+Let the probes be disjoint from the calibration windows, and let the pairs $\bigl(s(Z_j),s_d(Z_j)\bigr)_{j\le m}$ and $\bigl(s(X),s_d(X)\bigr)$ be exchangeable conditionally on the calibration data, with (A1) for the calibration data. Let $\tau=\Q_{1-\alpha}(S_{1:n})$,
+\[U_j=\begin{cases}s_d(Z_j)&s(Z_j)\le\tau\\-\infty&\text{otherwise}\end{cases},\qquad t_J=\Q_{1-\delta}(U_{1:m}).\]
+Then (i) $\FAR_d(t_J)\le\alpha+\delta$; (ii) $t_J\le\tau+\hat q$ for the same probes (CODA-J never alarms less); (iii) under drift between calibration and test, $\E[\FAR_d(t_J)-\FAR_{\mathrm{host}}(\tau)]\le\delta$ if the probe pairs and test pair are exchangeable.
+\end{theorem}
+\begin{proof}
+(i) $\{s_d(X)>t_J\}\subseteq\{S>\tau\}\cup\{S\le\tau,\ s_d(X)>t_J\}=\{S>\tau\}\cup\{U>t_J\}$ with $U$ the test analogue of $U_j$. Given the calibration data, $\tau$ is fixed and $(U_1,\dots,U_m,U)$ is exchangeable; Lemma~\ref{lem:cp}. (ii) $U_j\le\tau+D_j$ for every $j$ (equality of the first case uses $s(Z_j)\le\tau$; the second is $-\infty$), and order statistics are monotone. (iii) As in Theorem~\ref{thm:rel}.
+\end{proof}
+\begin{remark}
+Disjointness matters here: if probes are calibration windows, $\tau$ depends on them and $(U_j)$ is no longer exchangeable with $U$. As $\alpha'\to0$, CODA-J becomes recalibration on the probes (B2m) at level $\delta'$; at matched budget, CODA-J$(\alpha-\delta,\delta)$ and B2m$(\alpha)$ give the same FAR ($0.050$) and recall in simulation T5, versus $0.026$ for CODA. So with in-domain paired probes the union bound should not be used; CODA-J is the way to phrase ``CODA with in-domain probes'' so that it is never worse than either CODA or B2m. CODA-J is \emph{not} valid for out-of-domain probes: if their host scores are lower than in-domain, $U_j$ is too small.
+\end{remark}
+
+\subsection{CODA-conv: convolution of scores and shifts (valid under an extra assumption)}
+\begin{assumption}[Conditional shift dominance]\label{ass:cd}
+Probe shifts $D_1,\dots,D_m$ are i.i.d.\ from a law $P_\Delta$ and independent of the calibration and test windows, and conditionally on $(S_1,\dots,S_n,S)$ the test shift is dominated: $\Prob(D>c\mid S_{1:n},S)\le P_\Delta((c,\infty))$ for all $c$. A sufficient condition: in the test domain $\Delta(X)$ is independent of $s(X)$ and has the probe shift law.
+\end{assumption}
+\begin{theorem}[CODA-conv]\label{thm:conv}
+Under (A1) and Assumption~\ref{ass:cd}, let $t_C$ be the $k$-th smallest of the $nm$ sums $\{S_i+D_j\}$ with $k=\lceil(1-\beta)(n+1)(m+1)\rceil$ ($+\infty$ if $k>nm$). Then $\FAR_d(t_C)\le\beta$. No separate $\delta$ budget is spent.
+\end{theorem}
+\begin{proof}
+Coupling: let $V\sim\mathrm{Unif}(0,1)$ independent of everything, $D=F^{-1}_{D\mid S_{1:n},S}(V)$ (equal in law to the test shift) and $D'=F_\Delta^{-1}(V)$. Dominance gives $D\le D'$, and $D'$ is independent of the $S$'s with law $P_\Delta$, so $(D_1,\dots,D_m,D')$ is i.i.d.\ and independent of $(S_1,\dots,S_n,S)$. Hence $\FAR_d(t_C)\le\Prob(S+D'>t_C)$. Put $S_{n+1}=S$, $D_{m+1}=D'$, and let $T$ be the $k$-th smallest of all $(n+1)(m+1)$ sums. Since the calibration sums are a subset, $T\le t_C$. The joint law is invariant under separate permutations of the $S$-indices and of the $D$-indices, and $T$ is invariant under both, so $\Prob(S_{n+1}+D_{m+1}>T)$ equals the expected fraction of the $(n+1)(m+1)$ cells above $T$, which is $\le1-k/((n+1)(m+1))\le\beta$.
+\end{proof}
+\begin{remark}[Strengths and the honest caveat]
+$t_C$ is finite for small $m$: with $n=2000$ it needs $m\ge20$ at $\beta=0.05$ and $m\ge105$ at $\beta=0.01$ (CODA at $\delta=0.01$ needs $m\ge99$ for any $\alpha$). In simulation T5 with an independent heavy-tailed shift, CODA-conv$(\alpha)$ has FAR $0.048$ (CODA $0.026$), recall $0.45$ vs.\ $0.27$, and the threshold gap to the oracle shrinks from $+0.86$ to $+0.07$ (92\% smaller), with in-domain or out-of-domain probes alike; at $m=50$ it gives FAR $0.031$ where CODA is $+\infty$. \emph{But} Assumption~\ref{ass:cd} is not implied by any exchangeability and cannot be checked on the test domain with out-of-domain probes. When the shift grows with the score (positive dependence), CODA-conv is anti-conservative: FAR $0.055$ with in-domain and $0.063$ with out-of-domain probes at $\beta=\alpha=0.05$. A partial diagnostic on the probes themselves is to test whether $D_j$ depends on $s(Z_j)$ (e.g.\ Kendall's $\tau$, or comparing upper shift quantiles in the top and bottom score halves); with paired in-domain probes the independence of $s$ and $\Delta$ is directly testable.
+\end{remark}
+
+\begin{remark}[Monotone variant, valid but impractical]
+If $\Delta\mid s=v$ has the same law in both domains and is stochastically increasing in $v$, then shifts of probes with $s(Z)\ge v^*$ dominate $\Delta\mid s\le v^*$. With $v^*=\Q_{1-\alpha_1}$ from one half of the calibration data, CODA-conv on the other half (scores above $v^*$ masked to $-\infty$) with those probe shifts at level $1-\alpha_2$ gives $\FAR_d\le\alpha_1+\alpha_2$ by the same coupling. It needs (synthetic) probes whose host score exceeds $v^*$ and is extremely conservative with heavy tails (T5: FAR $0.0005$).
+\end{remark}
+
+
+\subsection{Per-run violations are not evidence of invalidity}\label{sec:viol}
+All guarantees above except the PAC part of Theorem~\ref{thm:rel} are \emph{marginal} (averaged over calibration and probe draws). Any method whose expected FAR is \emph{exactly} $\alpha$ has a per-run FAR that fluctuates around $\alpha$ with standard deviation of order $\sqrt{\alpha(1-\alpha)/m_{\mathrm{eff}}}$, where $m_{\mathrm{eff}}$ is the number of exchangeable units used for its threshold (windows, or blocks in Sec.~\ref{sec:block}). The share of runs with excess $>\delta$ is therefore large for every tight method. In simulation T5 (i.i.d.\ windows, $m=500$), recalibration on the probes, B2m$(\alpha)$, which is exactly valid, has excess $>\delta$ in $18.8\%$ of runs; the oracle threshold has $2.2\%$; CODA has $0\%$ only because of its slack. The heuristic \texttt{coda\_convolution} in \texttt{coda/conformal.py} shows excess $>\delta$ in 10--23\% of SMD runs; this is in the range of B2m and is not by itself a sign of invalidity. The marginal check is the \emph{mean} excess ($\le\delta$; CODA-conv$(\alpha)$ targets $\le 0$), and a per-run guarantee requires a PAC rank (Theorem~\ref{thm:rel}) for every method, including B2m. With block-dependent data ($\approx30$ blocks) the per-run spread is larger still, since $m_{\mathrm{eff}}\approx K$.
+
+\begin{remark}[Implementation detail of CODA-conv]
+\texttt{coda\_convolution} returns \texttt{np.quantile(sums, 1-alpha, method="higher")}, i.e.\ rank $\lceil(1-\alpha)nm\rceil$ of the $nm$ sums. Theorem~\ref{thm:conv} needs rank $\lceil(1-\alpha)(n+1)(m+1)\rceil$, which is larger by about $(1-\alpha)(n+m+1)$ positions (a quantile-level change of $\approx(1-\alpha)(1/n+1/m)$, i.e.\ $0.0024$ for $n=2000$, $m=500$). Using the theorem's rank makes the heuristic exactly valid under Assumption~\ref{ass:cd}; it does not repair failures of that assumption.
+\end{remark}
+
+\subsection{Relation to conformal calibration transfer}
+Doula~\cite{doula2026} (TCC) transfers labeled source calibration to a target space through unlabeled \emph{paired} observations $(x_s,x_t)$: a map $f$ is learned on pairs, source calibration inputs are transported, and the remaining mismatch is corrected by a one-sided KS gap $\hat\delta$ between transported and real target inputs on a label-free surrogate $T$, inflated by two DKW terms, $\delta^+=\hat\delta+\sqrt{\log(4/\eta)/(2m_{\mathrm{tgt}})}+\sqrt{\log(4/\eta)/(2m_{\mathrm{trans}})}$; calibration then uses level $\alpha^\star=\max\{0,\alpha-\delta^+\}$, with miscoverage $\le\alpha^\star+\delta^++\varepsilon$ with probability $\ge1-\eta$ over the unlabeled data, where $\varepsilon$ bounds how much the surrogate gap understates the true score gap (Assumption A2 there). A weighted variant is valid with oracle density ratios.
+
+\emph{Mapping to CODA.} In CODA the ``source'' and ``target'' are the same window scored by two models, so every probe is a pair in TCC's sense, and the transport $f$ corresponds to the score map $g$ of \texttt{coda\_linear}. Two differences matter. (i) In anomaly detection on normal data the target conformity score is label-free: the device score of an unlabeled normal window \emph{is} the score whose quantile we need, so TCC's surrogate is exact ($\varepsilon=0$) only when probes are normal windows from the test domain; but then the probes can be used directly (B2m, CODA-J), which is tighter. (ii) The KS/DKW correction costs $\sqrt{\log(4/\eta)/(2m)}$ per sample, $\approx0.08$ for $m=500$, $\eta=0.05$; this exceeds $\alpha=0.05$, so $\alpha^\star=0$ and TCC-KS is vacuous at our levels, whereas CODA's shift quantile costs $\delta=0.01$ in expectation (or a binomial PAC rank, Theorem~\ref{thm:rel}). Hence TCC does \emph{not} give a tighter valid correction than the union bound in either probe regime: with in-domain paired probes, CODA-J/B2m dominate it, and with out-of-domain probes its target-sample term needs unlabeled \emph{target-domain} inputs, which are exactly what CODA avoids putting on devices. Conceptually, CODA differs in what is transferred and what is assumed: TCC transports inputs and bounds a distribution gap (uniform over thresholds, via KS), while CODA transports a single threshold and bounds only the shift tail at that threshold (one quantile, no uniform bound), and it requires no learned map and no target-domain inputs, only that probe shifts dominate test shifts (Eq.~\eqref{eq:dom}).
+
+\subsection{Other ideas (heuristics)}
+\emph{Weighted conformal on the host score.} If $\Delta\mid s$ has the same law in both domains, the probe-to-test mismatch is a covariate shift in $s$; weighted conformal prediction \cite{tibshirani2019} with the likelihood ratio $w(v)=f_{\mathrm{test}}(v)/f_{\mathrm{probe}}(v)$ (estimable from calibration and probe host scores) applied to $U_j$ of CODA-J would be valid for a \emph{known} ratio; with an estimated ratio and probes that rarely reach the score region near $\tau$, it is a heuristic. \emph{Band decompositions} $\{S>\tau\}\cup\{S\in(\tau-\epsilon,\tau],D>q_\epsilon\}\cup\{S\le\tau-\epsilon,D>q_\epsilon+\epsilon\}$ are a discretized CODA-J; their conformal estimates need paired in-domain data, and with out-of-domain probes they need the same invariance assumption as the weighted method.
+
+\section{Summary of what is provable}
+\begin{table}[h]\centering\footnotesize
+\caption{Guarantees and assumptions ($\alpha=0.05,\delta=0.01$; simulation T5, independent heavy-tailed shift, $m=500$)}
+\begin{tabular}{@{}lllc@{}}\toprule
+Method & Bound & Needs & FAR\\\midrule
+CODA & $\alpha+\delta$ & (A1),(A2) or \eqref{eq:dom} & 0.026\\
+CODA, split $(.04,.02)$ & $\alpha+\delta$ & same, split fixed & 0.028\\
+CODA-lin (split fit) & $\alpha+\delta$ & fit indep.\ of rest & --\\
+CODA-J$(\alpha-\delta,\delta)$ & $\alpha$ & paired in-domain probes & 0.050\\
+B2m$(\alpha)$ & $\alpha$ & in-domain probes & 0.050\\
+CODA-conv$(\alpha)$ & $\alpha$ & Assumption~\ref{ass:cd} & 0.048\\
+Block CODA & $\alpha+\delta$ & block exch., $K_p\ge99$ & --\\\bottomrule
+\end{tabular}
+\end{table}
+
+\section*{AI assistance}
+These notes and the simulation script were drafted with the help of an AI assistant (Claude) and checked by the author.
+
+\begin{thebibliography}{00}
+\bibitem{vovk2005} V. Vovk, A. Gammerman, and G. Shafer, \textit{Algorithmic Learning in a Random World}. Springer, 2005.
+\bibitem{lei2018} J. Lei, M. G'Sell, A. Rinaldo, R. J. Tibshirani, and L. Wasserman, ``Distribution-free predictive inference for regression,'' \textit{J. Amer. Statist. Assoc.}, vol.~113, no.~523, pp.~1094--1111, 2018.
+\bibitem{angelopoulos2023} A. N. Angelopoulos and S. Bates, ``Conformal prediction: A gentle introduction,'' \textit{Found.\ Trends Mach.\ Learn.}, vol.~16, no.~4, pp.~494--591, 2023.
+\bibitem{makarov1981} G. D. Makarov, ``Estimates for the distribution function of a sum of two random variables when the marginal distributions are fixed,'' \textit{Theory Probab. Appl.}, vol.~26, no.~4, pp.~803--806, 1981.
+\bibitem{barber2021jackknife} R. F. Barber, E. J. Cand\`es, A. Ramdas, and R. J. Tibshirani, ``Predictive inference with the jackknife+,'' \textit{Ann. Statist.}, vol.~49, no.~1, pp.~486--507, 2021.
+\bibitem{vovk2012} V. Vovk, ``Conditional validity of inductive conformal predictors,'' in \textit{Proc. Asian Conf. Mach. Learn. (ACML)}, 2012.
+\bibitem{bates2021rcps} S. Bates, A. Angelopoulos, L. Lei, J. Malik, and M. I. Jordan, ``Distribution-free, risk-controlling prediction sets,'' \textit{J. ACM}, vol.~68, no.~6, 2021.
+\bibitem{barber2023} R. F. Barber, E. J. Cand\`es, A. Ramdas, and R. J. Tibshirani, ``Conformal prediction beyond exchangeability,'' \textit{Ann.\ Statist.}, vol.~51, no.~2, 2023.
+\bibitem{chernozhukov2018} V. Chernozhukov, K. W\"uthrich, and Y. Zhu, ``Exact and robust conformal inference methods for predictive machine learning with dependent data,'' in \textit{Proc. Conf. Learn. Theory (COLT)}, 2018.
+\bibitem{doula2026} A. Doula, ``Conformal calibration transfer,'' in \textit{Proc. ICML}, PMLR vol.~306, pp.~26291--26318, 2026; arXiv:2609.10737.
+\bibitem{tibshirani2019} R. J. Tibshirani, R. F. Barber, E. J. Cand\`es, and A. Ramdas, ``Conformal prediction under covariate shift,'' in \textit{Proc. NeurIPS}, 2019.
+\end{thebibliography}
+\end{document}

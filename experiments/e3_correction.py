@@ -8,8 +8,8 @@ recall of each method:
   B2m       device recalibrated on the m probes (only valid if probes are in-domain normal)
   CODA      tau + conformal (1 - delta) quantile of the probe shift (union bound)
   CODA-lin  regression-adjusted CODA (coda.conformal.coda_linear)
-  CODA-log  same in log-score space
-  CODA-conv heuristic: quantile of host scores plus probe shifts (no guarantee)
+  CODA-J    paired in-domain probes: device-score quantile among host-normal probes (alpha + delta)
+  CODA-conv k-th smallest host score + probe shift (alpha; needs shift not growing with score)
 Usage: python experiments/e3_correction.py results/scores_blocks [--repeats 20]
        (or results/scores_<dataset>_<protocol> for SMAP/MSL; probe counts m >= pool size are skipped)
 """
@@ -57,10 +57,11 @@ def evaluate(z, variant: str, alpha: float, delta: float, rng, repeats: int) -> 
                 tau = cf.threshold(host_cal, alpha)
                 add("CODA", src, m, tau + cf.coda_correction(pf, pd_, delta))
                 add("CODA-lin", src, m, cf.coda_linear(pf, pd_, host_cal, alpha, delta))
-                add("CODA-log", src, m, cf.coda_linear(pf, pd_, host_cal, alpha, delta, log=True))
-                add("CODA-conv", src, m, cf.coda_convolution(pf, pd_, host_cal, alpha))
+                add("CODA-conv", src, m, cf.coda_conv(pf, pd_, host_cal, alpha))
+                rows[-1]["kendall"] = cf.shift_score_dependence(pf, pd_)
                 if src == "cal":
                     add("B2m", src, m, cf.threshold(pd_, alpha))
+                    add("CODA-J", src, m, cf.coda_joint(pf, pd_, host_cal, alpha, delta))
     return rows
 
 

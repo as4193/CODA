@@ -49,6 +49,12 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
   6. Other toolchains (src/coda/runtimes.py): ONNX Runtime INT8 and ESP-DL (esp-ppq simulator, S3/P4) are NOT bit-identical to TFLite; ESP-DL shift ~8x TFLite's; a shared TFLite correction fails on ESP-DL, per-runtime CODA holds. TFLite's default XNNPACK delegate is also not bit-identical to reference kernels.
   7. Strategic: with in-domain normal probes, plain recalibration on the m probes (B2m) matches or beats CODA. CODA's distinct value = works with public/synthetic probes (no private data on devices) and small m. Check on full cache.
 
+  8. Oct 29 theory (docs/theory/theory.pdf, experiments/sim_theory.py): union bound is sharp given only marginals (Makarov). Tighter: CODA-J (paired in-domain probes, alpha+delta, ties B2m) and CODA-conv (rank k=ceil((1-a)(n+1)(m+1)); FAR<=alpha if shift not growing with score; check Kendall tau on probes). Block conformal quantile needs >=99 probe BLOCKS for delta=0.01. Doula CCT (ICML 2026) is vacuous at our alpha (KS slack ~0.08).
+     UNVERIFIED refs in theory.tex (added from memory, verify before citing): Makarov 1981, Vovk 2012 ACML, Bates et al. 2021 JACM, Chernozhukov et al. 2018 COLT, Tibshirani et al. 2019, Jackknife+ 2021, Lei et al. 2018, Vovk-Gammerman-Shafer 2005.
+  9. CODA's real edge over B2m (recalibrate on m probes): per-device stability at small alpha/m (alpha=0.01, m=100: excess sd 0.001 vs 0.017 int8; xviol 0-3% vs ~10%). Probes from another SMD machine FAIL at 4-bit (shift is input-dependent) -> "public probes" claim must be limited.
+  10. NASA SMAP/MSL added (scripts/get_nasa.sh). Host FAR far above alpha on several channels even with blocks -> report only excess on NASA. SMAP recall ~0.02 (anomaly likely in telemetry column only; consider telemetry-weighted score).
+  11. Progress Report 1: syllabus says Week 9, guidelines say Week 10 -> plan for Week 9. Draft in docs/literature_review.md (+refs.bib, 56 verified refs).
+
 ## Milestones (from guidelines)
 Proposal W6 · Progress Report 1 W10 (literature, baseline, data pipeline) · Progress Report 2 W13 (core method, ablations) · Final 6–8 page IEEE paper + artifact + oral defense/demo W16.
 

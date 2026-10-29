@@ -39,3 +39,27 @@ def test_coda_bound_under_score_shift():
         coda.append(cf.far(test_dev, tau + q))
     assert np.mean(b1) > alpha + delta
     assert np.mean(coda) <= alpha + delta
+
+
+def test_coda_joint_and_conv_valid_when_shift_independent():
+    rng = np.random.default_rng(2)
+    alpha, delta = 0.05, 0.01
+    fj, fc, fu = [], [], []
+    for _ in range(200):
+        cal = rng.normal(size=2000)
+        pf = rng.normal(size=500)
+        pd = pf + 0.3 + 0.1 * rng.standard_t(3, size=500)
+        tf = rng.normal(size=4000)
+        td = tf + 0.3 + 0.1 * rng.standard_t(3, size=4000)
+        fu.append(cf.far(td, cf.threshold(cal, alpha) + cf.coda_correction(pf, pd, delta)))
+        fj.append(cf.far(td, cf.coda_joint(pf, pd, cal, alpha, delta)))
+        fc.append(cf.far(td, cf.coda_conv(pf, pd, cal, alpha)))
+    assert np.mean(fj) <= alpha + delta and np.mean(fc) <= alpha + 0.005
+    assert np.mean(fu) < np.mean(fj)  # union bound is the most conservative
+
+
+def test_block_quantile_and_pac_rank():
+    v = np.arange(100.0)
+    assert cf.block_conformal_quantile(v, np.repeat(np.arange(10), 10), 0.5) == 54.0
+    assert cf.block_conformal_quantile(v, np.repeat(np.arange(10), 10), 0.99) == np.inf
+    assert cf.pac_rank(500, 0.01, 0.5) <= cf.pac_rank(500, 0.01, 0.05) <= 501
