@@ -9,6 +9,7 @@ recall of each method:
   CODA      tau + conformal (1 - delta) quantile of the probe shift (union bound)
   CODA-lin  regression-adjusted CODA (coda.conformal.coda_linear)
   CODA-log  same in log-score space
+  CODA-conv heuristic: quantile of host scores plus probe shifts (no guarantee)
 Usage: python experiments/e3_correction.py results/scores_blocks [--repeats 20]
 """
 import argparse
@@ -54,6 +55,7 @@ def evaluate(z, variant: str, alpha: float, delta: float, rng, repeats: int) -> 
                 add("CODA", src, m, tau + cf.coda_correction(pf, pd_, delta))
                 add("CODA-lin", src, m, cf.coda_linear(pf, pd_, host_cal, alpha, delta))
                 add("CODA-log", src, m, cf.coda_linear(pf, pd_, host_cal, alpha, delta, log=True))
+                add("CODA-conv", src, m, cf.coda_convolution(pf, pd_, host_cal, alpha))
                 if src == "cal":
                     add("B2m", src, m, cf.threshold(pd_, alpha))
     return rows
@@ -78,7 +80,8 @@ def main():
                         rows.append({"run": f.stem, **r})
     df = pd.DataFrame(rows)
     df["excess"] = df["far"] - df["host_far"]
-    df["viol"] = df["far"] > df["alpha"] + df["delta"]
+    df["viol"] = df["far"] > df["alpha"] + df["delta"]  # absolute bound (also counts host miscalibration)
+    df["xviol"] = df["excess"] > df["delta"]  # device-vs-host bound, the quantity CODA controls
     out = d.parent / f"e3_{d.name}.csv"
     df.to_csv(out, index=False)
     pd.set_option("display.width", 200)
@@ -86,8 +89,9 @@ def main():
         for a in (0.05,):
             sub = df[(df.alpha == a) & (df.delta == de)]
             t = sub.groupby(["variant", "source", "m", "method"]).agg(
-                far=("far", "mean"), viol=("viol", "mean"), recall=("recall", "mean")).round(3)
-            print(f"\n=== alpha={a} delta={de}  ({sub['run'].nunique()} runs; viol = share with FAR > alpha + delta)")
+                far=("far", "mean"), excess=("excess", "mean"), xviol=("xviol", "mean"),
+                recall=("recall", "mean")).round(3)
+            print(f"\n=== alpha={a} delta={de}  ({sub['run'].nunique()} runs; xviol = share with device FAR - host FAR > delta)")
             print(t.to_string())
     print(f"\nsaved {out}")
 

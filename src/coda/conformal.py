@@ -47,3 +47,15 @@ def coda_linear(probe_fp: np.ndarray, probe_dev: np.ndarray, cal_fp: np.ndarray,
     r = conformal_quantile(pd - (a * p + b), 1 - delta)
     t = threshold(a * c + b, alpha) + r
     return float(np.exp(t)) if log else t
+
+
+def coda_convolution(probe_fp: np.ndarray, probe_dev: np.ndarray, cal_fp: np.ndarray,
+                     alpha: float) -> float:
+    """Heuristic CODA threshold: the (1 - alpha) quantile of {s_i + Delta_j} over all host
+    calibration scores s_i and probe shifts Delta_j. It estimates the device score
+    distribution assuming the shift is independent of the host score, so it carries no
+    finite-sample guarantee; it is evaluated empirically against the union bound.
+    """
+    shift = np.asarray(probe_dev, dtype=np.float64) - np.asarray(probe_fp, dtype=np.float64)
+    sums = (np.asarray(cal_fp, dtype=np.float64)[:, None] + shift[None, :]).ravel()
+    return float(np.quantile(sums, 1 - alpha, method="higher"))
