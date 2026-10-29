@@ -1,0 +1,94 @@
+% !TeX program = pdflatex
+% Progress Report 1 -- 1501830 Topics in Artificial Intelligence (IEEE conference style)
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{iftex}
+\ifXeTeX % XeLaTeX: use Times, as IEEEtran does under pdfLaTeX
+  \AtBeginDocument{\special{pdf:docinfo << /Title (CODA: Progress Report 1) /Author (Abdelaziz Saud) /Creator (LaTeX) /Producer (LaTeX) >>}}
+  \usepackage{fontspec}\setmainfont{texgyretermes}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+\fi
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\renewcommand{\arraystretch}{1.2}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\usepackage{url}
+\usepackage{balance}
+\newcommand{\todo}[1]{{\color{red}[#1]}}
+
+\begin{document}
+\raggedbottom
+
+\title{CODA: Reliable False-Alarm Control for Quantized Anomaly Detectors on Heterogeneous Microcontrollers\\[0.3em]\large Progress Report 1}
+
+\author{\IEEEauthorblockN{Abdelaziz Saud}
+\IEEEauthorblockA{PhD Program: Computer Science\\
+University of Sharjah\\
+Student ID: U25200513 \quad Email: U25200513@sharjah.ac.ae\\
+Course 1501830, Fall 2026/2027 \quad Instructor: Dr.\ Hamza Ouarnoughi}}
+
+\maketitle
+
+\begin{abstract}
+This report covers related work, the data pipeline, and baselines for CODA, a method that keeps a full-precision conformal anomaly threshold valid after the detector is quantized and deployed on different microcontrollers. The host pipeline is complete for three public benchmarks (SMD, SMAP, MSL), seven integer back ends (three TFLite quantization settings, two ONNX Runtime settings, and two ESP-DL targets), and four baselines. Firmware for STM32, ESP32-S3, and RP2350 boards compiles and reproduces the host integer scores bit for bit on a simulated board. First results show that INT8 quantization of a small autoencoder barely moves the false-alarm rate, while 4-bit weights and the ESP-DL toolchain break an inherited threshold; CODA restores the device-to-host bound in both cases. We also report two limits found so far: recalibrating directly on in-domain probe windows is a strong competitor, and probes taken from a different machine do not transfer at 4 bits.
+\end{abstract}
+
+\section{Changes Since the Proposal}
+Four decisions were made after the first experiments, each for a reason we can measure.
+(1) \emph{Main metric.} SMD drifts between its training and test periods, so even the full-precision threshold exceeds its target on later data (false-alarm rate 0.59 at $\alpha=0.01$ on machine-1-1). This is a drift effect, not a quantization effect. The main metric is therefore the \emph{excess} false-alarm rate, device minus host, which is what quantization changes and what CODA bounds by $\delta$ even under drift (Section~\ref{sec:theory}). The absolute bound $\alpha+\delta$ is checked under a block-shuffled split where calibration and test data are close to exchangeable.
+(2) \emph{Source of heterogeneity.} TFLite reference and optimized integer kernels gave identical scores on the host, and TFLite Micro with CMSIS-NN or ESP-NN is designed to match them. Different devices running the same TFLite model may therefore not differ at all. Real differences come from vendor toolchains with their own quantizers, so we added ONNX Runtime and ESP-DL (esp-ppq) back ends.
+(3) \emph{Bit width.} INT8 effects turned out small, so 4-bit weights moved from the last ablation (E4) into the main study.
+(4) \emph{Framework.} Training uses TensorFlow only, since the deployment path (Keras, TFLite, TFLite Micro) needs no model conversion.
+
+\section{Related Work}
+We reviewed 56 sources; each was checked against its publisher, proceedings, or arXiv page.
+
+\emph{Conformal anomaly detection.} Split-conformal p-values bound the false-alarm rate on normal data at $\alpha$ when calibration and test windows are exchangeable~\cite{vovk2022,angelopoulos2023,bates2023,laxhammar2015}. All of these compute the threshold with the model that later scores the data; none treats a change of the scoring function between calibration and deployment.
+
+\emph{Dependence and shift.} Barber et al.~\cite{barber2023} bound the coverage loss under non-exchangeability, block methods handle dependent series~\cite{chernozhukov2018}, split conformal stays nearly valid for $\beta$-mixing data~\cite{oliveira2024}, and adaptive methods track coverage online~\cite{gibbs2021,zaffran2022}. These address input shift. In CODA the inputs are the same and the score function changes.
+
+\emph{Calibration transfer and recalibration.} Conformal Calibration Transfer~\cite{doula2026} moves calibration between two sensing spaces through unlabeled paired observations. CODA's probe windows are paired in a similar sense, but between two versions of one model; at our levels its distribution-wide slack (about 0.08 at $m=500$) exceeds $\alpha$, so it gives no usable threshold. Work on compressed models recalibrates each compressed model~\cite{tong2026,salem2026}, certifies output agreement rather than false alarms~\cite{zhou2026}, or computes thresholds on an INT8 model on one ESP32-S3~\cite{elallam2026}.
+
+\emph{Quantization beyond accuracy.} Bysani~\cite{bysani2026} showed that 4-bit quantization keeps AUC while an inherited conformal threshold loses coverage, because scores are roughly translated; the repair is empirical. A fixed model gives different outputs across 75 platforms~\cite{schlogl2023}, and INT8 kernel paths diverge layer by layer~\cite{chen2026alibi}. Toolchains differ in scale rules, rounding, and calibration~\cite{jacob2018,krishnamoorthi2018,nagel2021,espppq}.
+
+\emph{TinyML uncertainty.} TCUQ~\cite{lamaakal2025tcuq}, HDUQ-HAR~\cite{lamaakal2026hduq}, and SNAP-UQ~\cite{lamaakal2026snapuq} calibrate on the deployed model. Federated conformal methods share one model across clients with different data~\cite{lu2023,humbert2023}; CODA has the reverse structure.
+
+\emph{Gap.} No method keeps a host-calibrated conformal false-alarm guarantee across devices whose integer arithmetic differs, with a per-device bound and without placing calibration data on the device.
+
+\section{Method and Theory}\label{sec:theory}
+Let $s$ be the host score, $s_d=s+\Delta_d$ the score on device $d$, and $\tau$ the split-conformal $(1-\alpha)$ threshold on $n$ host calibration windows. CODA measures $\Delta_d$ on $m$ unlabeled probe windows and sets $\tau_d=\tau+\hat q_d$, with $\hat q_d$ the conformal $(1-\delta)$ quantile of the probe shifts. A union bound gives a device false-alarm rate of at most $\alpha+\delta$. Two further results are written up in our theory notes: the device-minus-host excess is at most $\delta$ for \emph{any} host threshold, which covers drift, provided probe and test shifts are exchangeable; and the union bound cannot be tightened using only the marginal laws of score and shift. Tighter thresholds need more information, which gives two variants. \emph{CODA-J} uses paired in-domain probes held out of the host calibration set and takes the $(1-\delta)$ quantile of device scores among probes the host calls normal; it keeps $\alpha+\delta$ and is never looser than CODA. \emph{CODA-conv} takes the $k$-th smallest of all host-score plus probe-shift sums, $k=\lceil(1-\alpha)(n+1)(m+1)\rceil$; it is valid at $\alpha$ if the shift does not grow with the score, which we check on the probes with Kendall's $\tau$.
+
+\section{Data Pipeline}
+\emph{Data.} SMD (28 machines, 38 channels)~\cite{su2019} is the primary benchmark; NASA SMAP and MSL~\cite{hundman2018} are added, with 48 and 18 usable channels under the block split. Data are fetched at pinned versions with SHA-256 checksums. Given known label problems in these benchmarks~\cite{wu2023}, false alarms are measured on normal data.
+\emph{Splits.} Windows of 64 steps, stride 1, in SMD's native $[0,1]$ scaling. The \emph{block} split cuts the training series into 128-step blocks, shuffles them, and assigns 60/10/15/15\% to fit, probe pool, calibration, and held-out normal data; no window crosses a block. The \emph{time} split keeps temporal order and measures false alarms on the later test period.
+\emph{Model.} A 1D-convolutional autoencoder with three convolutions down and three up (29\,KB in INT8, 17\,KB tensor arena); the score is reconstruction mean-squared error.
+\emph{Back ends.} TFLite full-integer PTQ with per-channel or per-tensor INT8 weights, and 4-bit weights with INT8 activations (W4A8); ONNX Runtime static INT8 (per-channel, per-tensor); ESP-DL via esp-ppq for ESP32-S3 and ESP32-P4. These are not bit-identical to each other: ESP-DL shifts scores about eight times more than TFLite.
+\emph{Firmware.} One PlatformIO build per board (NUCLEO-F446RE, ESP32-S3-DevKitC-1, Raspberry Pi Pico~2) with TFLite Micro and CMSIS-NN or ESP-NN. Models are uploaded over USB serial, probes are streamed, and the board returns score and cycle count per window. On a simulated board built from the same sources, all 500 probe scores matched the host TFLite scores exactly.
+\emph{Reproducibility.} Training is seeded end to end (an early bug left initial weights unseeded; it was found, fixed, and all results regenerated). Every result in this report is computed from one score cache per run.
+
+\section{Baselines and First Results}
+\emph{Baselines.} B1: inherited host threshold. B2: device recalibrated on the full calibration set (needs all calibration data on or near the device). B2m: device recalibrated on the $m$ probes, valid when probes are in-domain normal data. The fourth planned baseline, realignment from~\cite{bysani2026}, is scheduled for Report~2.
+
+\input{tables/main.tex}
+
+Table~\ref{tab:main} gives SMD results at $\alpha=0.05$, $\delta=0.01$, $m=500$ in-domain probes. \todo{2--3 sentences once final numbers are in.}
+
+\input{tables/smallm.tex}
+
+\emph{Where CODA helps and where it does not.} With in-domain probes and a generous budget, B2m is as good as any CODA variant: recalibrating on the probes is the right answer when probes are normal in-domain data. CODA's measurable advantage is stability at small $\alpha$ and small $m$ (Table~\ref{tab:smallm}): B2m estimates a $(1-\alpha)$ quantile from $m$ windows, while CODA estimates it from the $n$ host windows and uses the probes only for the $\delta$ part. \todo{numbers}. Probe source matters at 4 bits: probes from a different SMD machine give a shift that does not match the deployed machine, and CODA then exceeds its bound \todo{numbers}, while synthetic probes matched to the training statistics stay within it. The claim that any public probes suffice therefore does not hold in general, and E3 will map when it does.
+
+\section{Plan to Report 2 and Risks}
+Order and test the three boards (about 55~USD); run E1--E2 on hardware, including cycles, SRAM, and flash. Run the time split and NASA at full scale. Add baseline B4 and the block-conformal version of $\hat q_d$, which needs at least 99 probe blocks at $\delta=0.01$. Main risks: CODA may reduce to probe recalibration in the in-domain case (mitigation: position it for small $\alpha$, small $m$, and many devices); SMAP recall is low with an MSE score averaged over all channels (mitigation: a telemetry-weighted score); board delivery delays (mitigation: the simulated board and host back ends keep experiments running).
+
+\section*{Reproducibility}
+Code, data scripts, and firmware: \url{https://github.com/as4193/CODA}. Seeds 0--4; Python 3.11, TensorFlow 2.18, pinned in \texttt{requirements.lock}; datasets pinned by commit or archive snapshot with checksums.
+
+\section*{AI Assistance Disclosure}
+Claude (Anthropic) was used to write and debug code, run and summarize experiments, search and summarize literature, draft proofs, and draft this report. I verified each reference against its source page, reviewed the code and results, and checked the claims against the experiment outputs. I take responsibility for the content.
+
+\balance
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+\end{document}

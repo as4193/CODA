@@ -28,3 +28,5 @@ firmware/lib/tflm/
 firmware/host/coda_host
 firmware/esp32/sdkconfig.esp32s3
 firmware/esp32/managed_components/
+reports/progress1/*.pdf
+reports/progress1/tables/
