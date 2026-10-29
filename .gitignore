@@ -16,6 +16,7 @@ build/
 course_materials/
 proposal/Research_Proposal_PREVIEW.pdf
 !data/smd_sha256.txt
+!data/nasa_sha256.txt
 
 # Models built by scripts/coda_models.py (rebuild with scripts/export_model.py / board_probe.py)
 models/

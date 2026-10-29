@@ -17,9 +17,10 @@ Course project, 1501830 Topics in Artificial Intelligence, University of Sharjah
 uv venv --python 3.11 .venv
 uv pip install --python .venv/bin/python -r requirements.lock
 scripts/get_smd.sh                     # SMD at a pinned commit, with checksums
+scripts/get_nasa.sh                    # NASA SMAP/MSL (telemanom release), with checksums
 .venv/bin/python -m pytest -q tests
 .venv/bin/python experiments/e1_host.py --protocol blocks   # E1/E2 on the host
 ```
 
 ## Reproducibility
-Seeds 0-4. SMD from the OmniAnomaly repository at a pinned commit (see `scripts/get_smd.sh`, checksums in `data/smd_sha256.txt`). Python 3.11, TensorFlow 2.18; exact versions in `requirements.lock`.
+Seeds 0-4. SMD from the OmniAnomaly repository at a pinned commit (see `scripts/get_smd.sh`, checksums in `data/smd_sha256.txt`). NASA SMAP/MSL (Hundman et al., KDD 2018) from the original telemanom data release (archived copy, sha256-pinned; see `scripts/get_nasa.sh`, checksums in `data/nasa_sha256.txt`). `experiments/cache_scores.py --dataset smap|msl` writes `results/scores_<dataset>_<protocol>/`. Python 3.11, TensorFlow 2.18; exact versions in `requirements.lock`.
