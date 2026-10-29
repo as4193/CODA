@@ -10,6 +10,7 @@ recall of each method:
   CODA-lin  regression-adjusted CODA (coda.conformal.coda_linear)
   CODA-log  same in log-score space
 Usage: python experiments/e3_correction.py results/scores_blocks [--repeats 20]
+       (or results/scores_<dataset>_<protocol> for SMAP/MSL; probe counts m >= pool size are skipped)
 """
 import argparse
 import sys
@@ -45,6 +46,8 @@ def evaluate(z, variant: str, alpha: float, delta: float, rng, repeats: int) -> 
     for src in SOURCES:
         fp_pool, dv_pool = z[f"fp32/{src}"], z[f"{variant}/{src}"]
         for m in MS:
+            if m >= len(fp_pool):  # short NASA channels: pool too small (never on SMD)
+                continue
             for _ in range(repeats):
                 idx = rng.choice(len(fp_pool), m, replace=False)
                 pf, pd_ = fp_pool[idx], dv_pool[idx]
