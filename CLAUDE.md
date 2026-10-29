@@ -56,7 +56,9 @@ See docs/literature_notes.md for related work, the gap, and the novelty check.
   11. Progress Report 1: syllabus says Week 9, guidelines say Week 10 -> plan for Week 9. Draft in docs/literature_review.md (+refs.bib, 56 verified refs).
 
   12. Full SMD results (Oct 29; docs/results_e3_blocks.txt, docs/results_e3_time*.txt): B1 fails for W4A8 (+41.6 pp) and ESP-DL (+3.3 pp); all corrections keep mean excess <= delta; CODA union: <=2% runs over delta, -7 pp recall at 4 bits; CODA-J/conv: recall = B2, 11-34% runs over delta. Time split (drift, host FAR 0.37 @ alpha .05): CODA keeps excess <= delta in >=98.5% runs; CODA-J fails (14-53%).
-  13. Progress Report 1 drafted: reports/progress1/progress1.tex (4 pages; tables from experiments/make_tables.py). Student must confirm AI disclosure before submitting.
+  13. Progress Report 1 DONE (Oct 29): reports/progress1/progress1.tex, 4 pages, SMD blocks+time and NASA results. Self-contained submission zip at topics_ai/submission/progress1/progress1_abdelaziz.zip (tables and bibliography inlined). Student must confirm AI disclosure, then submit (Week 9).
+  14. NASA results (docs/results_e3_nasa.txt): SMAP B1 +3.9 pp even at INT8, +9.5 W4A8, +11.2 ESP-DL; CODA mean excess < 0, >delta in 3-4% runs. MSL CODA >delta in 7-18% (small pools).
+  Next (Report 2, Week 12-13): buy boards and run on hardware; telemetry-only NASA score; block-level probe quantile; baseline B4 (Bysani realignment); PAC rank for per-device guarantee.
 
 ## Milestones (from guidelines)
 Proposal W6 · Progress Report 1 W10 (literature, baseline, data pipeline) · Progress Report 2 W13 (core method, ablations) · Final 6–8 page IEEE paper + artifact + oral defense/demo W16.
