@@ -76,13 +76,37 @@ def smallm_table(df, out: Path, alpha=0.01, devices=("int8-pc", "w4a8", "espdl-s
     (out / "smallm.tex").write_text("\n".join(lines) + "\n")
 
 
+
+def probes_table(df, out: Path, alpha=0.05, m=500, devices=("int8-pc", "w4a8", "espdl-s3"),
+                 methods=("CODA", "CODA-conv")):
+    base = df[(df.alpha == alpha) & (df.delta == 0.01) & (df.m == m)]
+    src_names = {"cal": "in-domain", "other": "other machine", "synth": "synthetic"}
+    lines = [r"\begin{table}[t]", r"\centering",
+             rf"\caption{{Effect of probe source ($\alpha={alpha}$, $m={m}$): mean excess false-alarm "
+             r"rate (pp) and share of runs with excess $>\delta$ (\%).}", r"\label{tab:probes}",
+             r"\scriptsize", r"\setlength{\tabcolsep}{4pt}",
+             r"\begin{tabular}{@{}ll" + "r" * len(methods) + "@{}}", r"\toprule",
+             r"Device & Probes & " + " & ".join(methods) + r"\\ \midrule"]
+    for v in devices:
+        for i, (src, name) in enumerate(src_names.items()):
+            g = base[(base.variant == v) & (base.source == src)]
+            cells = [f"{100 * g[g.method == mth].excess.mean():+.1f} ({100 * g[g.method == mth].xviol.mean():.0f})"
+                     for mth in methods]
+            lines.append((SHORT[v] if i == 0 else "") + f" & {name} & " + " & ".join(cells) + r"\\")
+        lines.append(r"\addlinespace")
+    lines[-1] = r"\bottomrule"
+    lines += [r"\end{tabular}", r"\end{table}"]
+    (out / "probes.tex").write_text("\n".join(lines) + "\n")
+
+
 def main():
     df = pd.read_csv(sys.argv[1])
     out = Path(sys.argv[2])
     out.mkdir(parents=True, exist_ok=True)
     main_table(df, out)
     smallm_table(df, out)
-    print(f"wrote {out}/main.tex, {out}/smallm.tex from {df.run.nunique()} runs")
+    probes_table(df, out)
+    print(f"wrote {out}/main.tex, smallm.tex, probes.tex from {df.run.nunique()} runs")
 
 
 if __name__ == "__main__":
