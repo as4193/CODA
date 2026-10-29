@@ -141,7 +141,7 @@ The guarantee is in units of blocks: $1/(K+1)$ plays the role of $1/(n+1)$, and 
 \end{remark}
 
 \begin{remark}[Approximate block exchangeability]
-Shuffled consecutive blocks of a stationary series are only approximately exchangeable (adjacent blocks are dependent at their boundaries). Barber et al.~\cite{barber2023} bound the coverage loss of split conformal by $\sum_{i}\tilde w_i\, d_{\mathrm{TV}}(Z,Z^{i})$, where $Z^{i}$ swaps unit $i$ with the test unit; applied with blocks as units, the loss is small when the series mixes on a scale shorter than the block length. Block-permutation conformal inference for dependent data is developed in \cite{chernozhukov2018}. A gap of a few windows between blocks reduces boundary dependence further.
+Shuffled consecutive blocks of a stationary series are only approximately exchangeable (adjacent blocks are dependent at their boundaries). Barber et al.~\cite{barber2023} bound the coverage loss of (weighted) split conformal by $\sum_{i}\tilde w_i\, d_{\mathrm{TV}}(Z,Z^{i})$, where $Z^{i}$ swaps unit $i$ with the test unit and $\tilde w_i=w_i/(1+\sum_j w_j)$ for fixed weights $w_i\in[0,1]$ ($\tilde w_i=1/(n+1)$ for unweighted split conformal on $n$ units); applied with blocks as units, the loss is small when the series mixes on a scale shorter than the block length. Block-permutation conformal inference for dependent data is developed in \cite{chernozhukov2018}. A gap of a few windows between blocks reduces boundary dependence further.
 \end{remark}
 
 \section{Tighter corrections}\label{sec:tight}
@@ -222,16 +222,16 @@ Block CODA & $\alpha+\delta$ & block exch., $K_p\ge99$ & --\\\bottomrule
 These notes and the simulation script were drafted with the help of an AI assistant (Claude) and checked by the author.
 
 \begin{thebibliography}{00}
-\bibitem{vovk2005} V. Vovk, A. Gammerman, and G. Shafer, \textit{Algorithmic Learning in a Random World}. Springer, 2005.
-\bibitem{lei2018} J. Lei, M. G'Sell, A. Rinaldo, R. J. Tibshirani, and L. Wasserman, ``Distribution-free predictive inference for regression,'' \textit{J. Amer. Statist. Assoc.}, vol.~113, no.~523, pp.~1094--1111, 2018.
-\bibitem{angelopoulos2023} A. N. Angelopoulos and S. Bates, ``Conformal prediction: A gentle introduction,'' \textit{Found.\ Trends Mach.\ Learn.}, vol.~16, no.~4, pp.~494--591, 2023.
-\bibitem{makarov1981} G. D. Makarov, ``Estimates for the distribution function of a sum of two random variables when the marginal distributions are fixed,'' \textit{Theory Probab. Appl.}, vol.~26, no.~4, pp.~803--806, 1981.
-\bibitem{barber2021jackknife} R. F. Barber, E. J. Cand\`es, A. Ramdas, and R. J. Tibshirani, ``Predictive inference with the jackknife+,'' \textit{Ann. Statist.}, vol.~49, no.~1, pp.~486--507, 2021.
-\bibitem{vovk2012} V. Vovk, ``Conditional validity of inductive conformal predictors,'' in \textit{Proc. Asian Conf. Mach. Learn. (ACML)}, 2012.
-\bibitem{bates2021rcps} S. Bates, A. Angelopoulos, L. Lei, J. Malik, and M. I. Jordan, ``Distribution-free, risk-controlling prediction sets,'' \textit{J. ACM}, vol.~68, no.~6, 2021.
-\bibitem{barber2023} R. F. Barber, E. J. Cand\`es, A. Ramdas, and R. J. Tibshirani, ``Conformal prediction beyond exchangeability,'' \textit{Ann.\ Statist.}, vol.~51, no.~2, 2023.
-\bibitem{chernozhukov2018} V. Chernozhukov, K. W\"uthrich, and Y. Zhu, ``Exact and robust conformal inference methods for predictive machine learning with dependent data,'' in \textit{Proc. Conf. Learn. Theory (COLT)}, 2018.
-\bibitem{doula2026} A. Doula, ``Conformal calibration transfer,'' in \textit{Proc. ICML}, PMLR vol.~306, pp.~26291--26318, 2026; arXiv:2609.10737.
-\bibitem{tibshirani2019} R. J. Tibshirani, R. F. Barber, E. J. Cand\`es, and A. Ramdas, ``Conformal prediction under covariate shift,'' in \textit{Proc. NeurIPS}, 2019.
+\bibitem{vovk2005} V. Vovk, A. Gammerman, and G. Shafer, \textit{Algorithmic Learning in a Random World}. New York, NY, USA: Springer, 2005, doi:~10.1007/b106715.
+\bibitem{lei2018} J. Lei, M. G'Sell, A. Rinaldo, R. J. Tibshirani, and L. Wasserman, ``Distribution-free predictive inference for regression,'' \textit{J. Amer. Statist. Assoc.}, vol.~113, no.~523, pp.~1094--1111, 2018, doi:~10.1080/01621459.2017.1307116.
+\bibitem{angelopoulos2023} A. N. Angelopoulos and S. Bates, ``Conformal prediction: A gentle introduction,'' \textit{Found.\ Trends Mach.\ Learn.}, vol.~16, no.~4, pp.~494--591, 2023, doi:~10.1561/2200000101.
+\bibitem{makarov1981} G. D. Makarov, ``Estimates for the distribution function of a sum of two random variables when the marginal distributions are fixed,'' \textit{Theory Probab.\ Appl.}, vol.~26, no.~4, pp.~803--806, 1982 (Russian original 1981), doi:~10.1137/1126086.
+\bibitem{barber2021jackknife} R. Foygel Barber, E. J. Cand\`es, A. Ramdas, and R. J. Tibshirani, ``Predictive inference with the jackknife+,'' \textit{Ann. Statist.}, vol.~49, no.~1, pp.~486--507, 2021, doi:~10.1214/20-AOS1965.
+\bibitem{vovk2012} V. Vovk, ``Conditional validity of inductive conformal predictors,'' in \textit{Proc. Asian Conf. Mach. Learn. (ACML)}, PMLR vol.~25, pp.~475--490, 2012.
+\bibitem{bates2021rcps} S. Bates, A. Angelopoulos, L. Lei, J. Malik, and M. I. Jordan, ``Distribution-free, risk-controlling prediction sets,'' \textit{J. ACM}, vol.~68, no.~6, pp.~1--34, 2021, doi:~10.1145/3478535.
+\bibitem{barber2023} R. Foygel Barber, E. J. Cand\`es, A. Ramdas, and R. J. Tibshirani, ``Conformal prediction beyond exchangeability,'' \textit{Ann.\ Statist.}, vol.~51, no.~2, pp.~816--845, 2023, doi:~10.1214/23-AOS2276.
+\bibitem{chernozhukov2018} V. Chernozhukov, K. W\"uthrich, and Y. Zhu, ``Exact and robust conformal inference methods for predictive machine learning with dependent data,'' in \textit{Proc. Conf. Learn. Theory (COLT)}, PMLR vol.~75, pp.~732--749, 2018.
+\bibitem{doula2026} A. Doula, ``Conformal calibration transfer,'' in \textit{Proc. 43rd Int. Conf. Mach. Learn. (ICML)}, PMLR vol.~306, pp.~26291--26318, 2026; arXiv:2609.10737.
+\bibitem{tibshirani2019} R. J. Tibshirani, R. Foygel Barber, E. J. Cand\`es, and A. Ramdas, ``Conformal prediction under covariate shift,'' in \textit{Adv. Neural Inf. Process. Syst. (NeurIPS)}, vol.~32, 2019.
 \end{thebibliography}
 \end{document}
